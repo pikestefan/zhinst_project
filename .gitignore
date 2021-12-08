@@ -2,3 +2,4 @@
 *.pyc
 /.idea
 *.pyc
+/zhinstlib.egg-info/*
