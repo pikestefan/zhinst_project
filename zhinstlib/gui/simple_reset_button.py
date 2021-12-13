@@ -11,7 +11,7 @@ from pathlib import Path
 import PyQt5.QtWidgets as qwid
 import PyQt5.QtCore as qcore
 from helpers.helper_funcs import get_device_props
-from core_classes.zinst_device import ziVirtualDevice
+from zhinstlib.core_classes.zinst_device import ziVirtualDevice
 import time
 
 
