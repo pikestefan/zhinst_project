@@ -1,4 +1,4 @@
-from zhinstlib.core_classes.zinst_device import ziVirtualDevice
+from zhinstlib.core.zinst_device import ziVirtualDevice
 from zhinstlib.helpers.helper_funcs import get_device_props
 from zhinstlib.helpers.prompt_widget import prompt_at_overwrite
 import time

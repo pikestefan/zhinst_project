@@ -1,4 +1,4 @@
-from zhinstlib.core_classes.zinst_device import ziVirtualDevice
+from zhinstlib.core.zinst_device import ziVirtualDevice
 from zhinstlib.helpers.helper_funcs import get_device_props
 import time
 import numpy as np
