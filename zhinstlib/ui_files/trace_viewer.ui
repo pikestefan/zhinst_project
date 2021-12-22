@@ -69,8 +69,8 @@
         <widget class="PlotWidget" name="widget_2" native="true">
          <property name="geometry">
           <rect>
-           <x>30</x>
-           <y>50</y>
+           <x>40</x>
+           <y>30</y>
            <width>281</width>
            <height>231</height>
           </rect>
