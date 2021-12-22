@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>953</width>
-    <height>737</height>
+    <width>1002</width>
+    <height>748</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
@@ -52,19 +58,21 @@
       </layout>
      </item>
      <item>
-      <widget class="QStackedWidget" name="stackedWidget">
+      <widget class="QTabWidget" name="tabWidget">
        <property name="currentIndex">
-        <number>1</number>
+        <number>0</number>
        </property>
-       <widget class="QWidget" name="page"/>
-       <widget class="QWidget" name="page_2">
+       <widget class="QWidget" name="tab">
+        <attribute name="title">
+         <string>Tab 1</string>
+        </attribute>
         <widget class="PlotWidget" name="widget_2" native="true">
          <property name="geometry">
           <rect>
-           <x>10</x>
-           <y>20</y>
-           <width>351</width>
-           <height>301</height>
+           <x>30</x>
+           <y>50</y>
+           <width>281</width>
+           <height>231</height>
           </rect>
          </property>
          <property name="sizePolicy">
@@ -75,25 +83,14 @@
          </property>
         </widget>
        </widget>
+       <widget class="QWidget" name="tab_2">
+        <attribute name="title">
+         <string>Tab 2</string>
+        </attribute>
+       </widget>
       </widget>
      </item>
     </layout>
-   </widget>
-   <widget class="PlotWidget" name="widget_3" native="true">
-    <property name="geometry">
-     <rect>
-      <x>480</x>
-      <y>90</y>
-      <width>351</width>
-      <height>301</height>
-     </rect>
-    </property>
-    <property name="sizePolicy">
-     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-      <horstretch>0</horstretch>
-      <verstretch>0</verstretch>
-     </sizepolicy>
-    </property>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -101,7 +98,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>953</width>
+     <width>1002</width>
      <height>21</height>
     </rect>
    </property>
