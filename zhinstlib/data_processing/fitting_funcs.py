@@ -5,6 +5,9 @@ def lorentz_func(freqs, freq0, FWHM, amp):
 
     return amp*(FWHM/2)**2/((FWHM/2)**2 + np.square(freqs-freq0))
 
+def normalized_nlin_rdown(t, gamma, gamma_nlin, y0):
+    return np.exp(-gamma*t/2) / np.sqrt(1 + gamma_nlin*(1-np.exp(-gamma*t))/(4*gamma)) + y0
+
 def nlin_rdown(t, gamma, gamma_nlin, y0, A):
     return A * np.exp(-gamma*t/2) / np.sqrt(1 + A**2*gamma_nlin*(1-np.exp(-gamma*t))/(4*gamma)) + y0
 
