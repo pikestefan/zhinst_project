@@ -9,6 +9,7 @@ from math import ceil
 class ziVirtualDevice(zi.ziDAQServer):
     def __init__(self, dev_name='', auto_properties=True, *args, **kwargs):
         if auto_properties:
+            device_props = get_device_props(dev_name)
             args = [device_props['serveraddress'],
                     device_props['serverport'],
                     device_props['apilevel'] ]

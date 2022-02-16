@@ -35,6 +35,7 @@ class WaferAnalyzer(QMainWindow):
         self._create_mode = False
         self.active_mode = 0
         self.loaded_data = dict()
+        self.zi_device = None
 
         self.initUI()
 
@@ -132,7 +133,8 @@ class WaferAnalyzer(QMainWindow):
         self.add_wafer_layout()
 
     def connect_to_zurich(self, lockinID):
-        pass
+        self.zi_device = ziVirtualDevice(lockinID)
+        print("testing")
 
     def set_mode_and_dir(self, directory, mode):
         if not isinstance(directory, Path):
