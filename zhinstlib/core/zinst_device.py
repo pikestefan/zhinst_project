@@ -7,8 +7,12 @@ from math import ceil
 
 
 class ziVirtualDevice(zi.ziDAQServer):
+    def __init__(self, dev_name='', auto_properties=True, *args, **kwargs):
+        if auto_properties:
+            args = [device_props['serveraddress'],
+                    device_props['serverport'],
+                    device_props['apilevel'] ]
 
-    def __init__(self, dev_name='', *args, **kwargs):
         super(ziVirtualDevice, self).__init__(*args, **kwargs)
         self.dev_name = dev_name
         self.__baseaddress = f'/{dev_name}'
