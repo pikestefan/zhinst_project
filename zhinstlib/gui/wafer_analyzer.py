@@ -58,8 +58,10 @@ class WaferAnalyzer(QMainWindow):
         self.quadratureRadioButtons.setChecked('R')
 
         self.refreshPlotsButton.clicked.connect(self.load_ringdowns)
+
     def test(self, val):
         pass
+
     def open_mode_dialog(self):
         self.wafer_mode_selector = ChooseModeDialog()
         self.wafer_mode_selector.signal_wafer_mode.connect(self.set_mode_and_dir)
@@ -117,7 +119,7 @@ class WaferAnalyzer(QMainWindow):
                 for mode_num in range(1, modes + 1):
                     (directory / wafername / folder_id / f"mode{mode_num}").mkdir(parents=False)
 
-    def set_wafer_matrix(self, rows, cols, mode_num, wafer_name):
+    def set_wafer_matrix(self, rows, cols, mode_num, wafer_name, lockinID = None):
         self.rows = rows
         self.cols = cols
         self.mode_num = mode_num
@@ -126,7 +128,11 @@ class WaferAnalyzer(QMainWindow):
         if self._create_mode:
             self.create_wafer_folder(self.wafer_directory, self.wafer_name,
                                      self.rows, self.cols, self.mode_num)
+            self.connect_to_zurich(lockinID)
         self.add_wafer_layout()
+
+    def connect_to_zurich(self, lockinID):
+        pass
 
     def set_mode_and_dir(self, directory, mode):
         if not isinstance(directory, Path):
