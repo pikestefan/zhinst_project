@@ -287,6 +287,9 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="styleSheet">
+             <string notr="true"/>
+            </property>
             <layout class="QHBoxLayout" name="horizontalLayout_4">
              <property name="leftMargin">
               <number>0</number>
@@ -584,8 +587,6 @@
    <header>pyqtgraph</header>
   </customwidget>
  </customwidgets>
- <resources>
-  <include location="../artwork/wafer_background.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>
