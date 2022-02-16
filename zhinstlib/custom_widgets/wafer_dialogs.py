@@ -34,7 +34,7 @@ class ChooseModeDialog(QDialog):
             self.close()
 
 class WaferDialogGui(QDialog):
-    dialog_accepted = pyqtSignal(int, int, int, str)
+    dialog_accepted = pyqtSignal(int, int, int, str, str)
 
     def __init__(self):
         this_dir = Path(os.path.dirname(__file__))
@@ -54,4 +54,5 @@ class WaferDialogGui(QDialog):
         cols = self.colsBox.value()
         modes = self.modeNumber.value()
         wafer_name = self.waferName.text()
-        self.dialog_accepted.emit(rows, cols, modes, wafer_name)
+        lockinID = self.lockinID.text()
+        self.dialog_accepted.emit(rows, cols, modes, wafer_name, lockinID)
