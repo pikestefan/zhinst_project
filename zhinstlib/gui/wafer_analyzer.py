@@ -10,8 +10,9 @@ from math import sqrt, floor
 import pyqtgraph as pg
 import re
 import h5py
+import time
 
-from zhinstlib.core.zinst_device import ziVirtualDevice
+from zhinstlib.core.zinst_device import PyQtziVirtualDevice
 from zhinstlib.core.custom_data_containers import LockinData
 from zhinstlib.custom_widgets.wafer_dialogs import WaferDialogGui, ChooseModeDialog
 from zhinstlib.custom_widgets.mouse_interacting_lineedit import InteractingLineEdit
@@ -34,6 +35,7 @@ class WaferAnalyzer(QMainWindow):
         self.demod_collection = []
         self._create_mode = False
         self.active_mode = 0
+        self.active_chip = None
         self.loaded_data = dict()
         self.zi_device = None
 
@@ -68,8 +70,7 @@ class WaferAnalyzer(QMainWindow):
         self.wafer_mode_selector.signal_wafer_mode.connect(self.set_mode_and_dir)
         self.wafer_mode_selector.show()
 
-    def add_demodulators(self):
-        demods = self.get_demod_num()
+    def add_demodulators(self, demods):
         for demod in range(demods):
             chbox = QCheckBox()
             chbox.setText(str(demod + 1))
@@ -87,15 +88,14 @@ class WaferAnalyzer(QMainWindow):
                                  floor(0.65 * container_width / self.cols))
 
         self.interactive_wafer = InteractiveWafer(self.rows, self.cols, lateral_size)
+        self.interactive_wafer.signal_id_changed.connect(self.set_active_chip)
         self.plotContainer.addWidget(self.interactive_wafer)
 
         self.prepare_combobox()
-
         self.show()
 
-    def get_demod_num(self):
-        # FIXME: for now return just a fixed number
-        return 6
+    def set_active_chip(self, id):
+        self.active_chip = id
 
     def call_wafer_creation_dialog(self):
         self._dialog = WaferDialogGui()
@@ -133,8 +133,31 @@ class WaferAnalyzer(QMainWindow):
         self.add_wafer_layout()
 
     def connect_to_zurich(self, lockinID):
-        self.zi_device = ziVirtualDevice(lockinID)
-        print("testing")
+        self.zi_device = PyQtziVirtualDevice(lockinID)
+        demods = self.zi_device.get_available_demods()
+        self.add_demodulators(demods)
+
+        #Connect the signal required to stop or start the acquisition
+        self.executionButton.clicked.connect(self.acquire_data)
+
+    def acquire_data(self):
+        #### This is a testing function
+        if self.active_chip is not None:
+            saving_dir = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode}"
+            desired_signals = ['x', 'y']
+            saving_kwargs = {'saving_dir': str(saving_dir),
+                             'saving_fname': 'test',
+                             }
+            save_to_file = True
+            stream_read_kwargs = {'read_duration': 5,
+                                  'burst_duration': 1}
+            daqmodule_name, sus_signal_paths = self.zi_device.set_subscribe_daq([0],
+                                                                               desired_signals, save_files=save_to_file,
+                                                                               **stream_read_kwargs, **saving_kwargs)
+            self.zi_device.execute_daqmodule(daqmodule_name)
+            time.sleep(5)
+            self.zi_device.read_daq_module(daqmodule_name, sus_signal_paths, save_to_dictionary=False, save_on_file=save_to_file)
+            print("Done")
 
     def set_mode_and_dir(self, directory, mode):
         if not isinstance(directory, Path):
@@ -144,7 +167,6 @@ class WaferAnalyzer(QMainWindow):
 
         if self._create_mode:
             self.call_wafer_creation_dialog()
-            self.add_demodulators() #Placeholder: need to connect to the Zurich at some point
         else:
             self.executionButton.setEnabled(False)
             self.get_wafer_info(self.wafer_directory)
@@ -254,7 +276,9 @@ class WaferAnalyzer(QMainWindow):
         sys.exit()
 
 class InteractiveWafer(QWidget):
+
     signal_id_changed = pyqtSignal(str)
+
     def __init__(self, rows=1, cols=1, fixed_size=100, *args, **kwargs):
         super(InteractiveWafer, self).__init__()
         this_dir = Path(os.path.dirname(__file__))
