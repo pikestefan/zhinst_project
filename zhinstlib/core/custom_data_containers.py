@@ -8,6 +8,7 @@ class LockinData(object):
         data_container = DemodulatorDataContainer(time_axis=time_axis, x_quad=x_quad, y_quad=y_quad,
                                                   frequency=frequency)
         data_container.set_circular_coords()
+        self._demods[demod] = data_container
 
     def get_demods(self):
         return np.array(self._demods.keys())
