@@ -11,6 +11,7 @@ class ButtonText(qwid.QPushButton):
         self.setChecked(False)
         self.set_onoff_strings(self.on_off_strings)
         self.clicked.connect(self.change_text)
+        self.toggled.connect(self.change_text)
 
     def change_text(self):
         if self.isChecked():
