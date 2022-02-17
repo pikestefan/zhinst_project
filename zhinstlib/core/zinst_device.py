@@ -556,7 +556,6 @@ class PyQtziVirtualDevice(QObject):
             daq_module.set('save/saveonread', saving_onread)
 
         for sig_path in cmd_list:
-            print('Subscribing to', sig_path)
             daq_module.subscribe(sig_path)
 
         self.daqmodules[module_name] = daq_module
@@ -638,6 +637,11 @@ class PyQtziVirtualDevice(QObject):
         if daq_module_name not in self.daqmodules.keys():
             raise Exception("The module has not been set and added to the daqmodules yet.")
         self.daqmodules[daq_module_name].execute()
+
+    def stop_daqmodule(self, daq_module_name=None):
+        if daq_module_name not in self.daqmodules.keys():
+            raise Exception("The module has not been set and added to the daqmodules yet.")
+        self.daqmodules[daq_module_name].finish()
 
     def set_aux_offset(self, aux=0, offset=0):
         cmd = self.__baseaddress + f'/auxouts/{aux}/offset'
@@ -791,6 +795,9 @@ class PyQtziVirtualDevice(QObject):
             print("Max. iteration number reached.")
         else:
             print("Converged")
+
+    def sync(self):
+        self.ziServer.sync()
 
     def sweep_freq_and_optimize(self, demod=None, settle_time=None, int_time=None,
                                 coarse_range=5, fine_range=20e-3, coarse_steps=5, fine_steps=6):
