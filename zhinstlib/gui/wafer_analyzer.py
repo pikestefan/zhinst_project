@@ -20,6 +20,7 @@ from zhinstlib.custom_widgets.radio_btn_collection import RadioBtnList
 
 
 class WaferAnalyzer(QMainWindow):
+    signal_start_acquisition = pyqtSignal()
 
     def __init__(self):
         super(WaferAnalyzer, self).__init__()
@@ -32,7 +33,7 @@ class WaferAnalyzer(QMainWindow):
         self.mode_num = 0
         self.wafer_name = ''
         self.wafer_directory = Path()
-        self.demod_collection = []
+        self.demod_collection = [] #list to contain the demod checkbuttons
         self._create_mode = False
         self.active_mode = 0
         self.active_chip = None
@@ -46,10 +47,6 @@ class WaferAnalyzer(QMainWindow):
 
         self.executionButton.set_onoff_strings(['Stop recording', 'Start recording'])
         self.executionButton.clicked.connect(self.set_chip_interaction)
-        self.autorefreshCheckBox.stateChanged.connect(self.set_refreshbtn_status)
-
-        self.modeSelector.currentIndexChanged.connect(self.set_active_mode)
-
 
         btn_dictionary = {'R': self.rRadioBtn,
                           'phase': self.phaseRadioBtn,
@@ -57,10 +54,14 @@ class WaferAnalyzer(QMainWindow):
                           'y': self.yRadioBtn}
 
         self.quadratureRadioButtons = RadioBtnList(**btn_dictionary)
+
+        #Signal connections
+        self.refreshPlotsButton.clicked.connect(self.load_ringdowns)
+        self.autorefreshCheckBox.stateChanged.connect(self.set_refreshbtn_status)
+        self.modeSelector.currentIndexChanged.connect(self.set_active_mode)
+        self.signal_start_acquisition.connect(self.acquire_data)
         self.quadratureRadioButtons.btn_toggled.connect(self.test)
         self.quadratureRadioButtons.setChecked('R')
-
-        self.refreshPlotsButton.clicked.connect(self.load_ringdowns)
 
     def test(self, val):
         pass
@@ -75,6 +76,7 @@ class WaferAnalyzer(QMainWindow):
             chbox = QCheckBox()
             chbox.setText(str(demod + 1))
             self.demodContainer.addWidget(chbox)
+            self.demod_collection.append(chbox)
 
     def add_wafer_layout(self):
         image_path = self.this_dir.parents[0] / 'artwork' / 'wafer.png'
@@ -138,26 +140,37 @@ class WaferAnalyzer(QMainWindow):
         self.add_demodulators(demods)
 
         #Connect the signal required to stop or start the acquisition
-        self.executionButton.clicked.connect(self.acquire_data)
+        self.executionButton.clicked.connect(self.initialize_daq_module)
+
+    def initialize_daq_module(self):
+        if self.active_chip is not None:
+            saving_dir = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode}"
+            desired_signals = ['x', 'y', 'frequency']
+
+            saving_kwargs = {'saving_dir': str(saving_dir),
+                             'saving_fname': 'stream',
+                             }
+            stream_read_kwargs = {'read_duration': 9000,
+                                  'burst_duration': 1}
+
+            save_to_file = True
+
+            subscribe_demods = []
+            for chbox in self.demod_collection:
+                if chbox.isChecked():
+                    subscribe_demods.append(int(chbox.text())-1)
+
+            daqmodule_name, sus_signal_paths = self.zi_device.set_subscribe_daq(subscribe_demods,
+                                                                                desired_signals,
+                                                                                save_files=save_to_file,
+                                                                                **stream_read_kwargs, **saving_kwargs)
+            self.zi_device.execute_daqmodule(daqmodule_name)
+            self.signal_start_acquisition.emit()
 
     def acquire_data(self):
         #### This is a testing function
-        if self.active_chip is not None:
-            saving_dir = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode}"
-            desired_signals = ['x', 'y']
-            saving_kwargs = {'saving_dir': str(saving_dir),
-                             'saving_fname': 'test',
-                             }
-            save_to_file = True
-            stream_read_kwargs = {'read_duration': 5,
-                                  'burst_duration': 1}
-            daqmodule_name, sus_signal_paths = self.zi_device.set_subscribe_daq([0],
-                                                                               desired_signals, save_files=save_to_file,
-                                                                               **stream_read_kwargs, **saving_kwargs)
-            self.zi_device.execute_daqmodule(daqmodule_name)
-            time.sleep(5)
+            #FIXME: keep programming from here. Need to implement a way to keep reading until the stop button is clicked.
             self.zi_device.read_daq_module(daqmodule_name, sus_signal_paths, save_to_dictionary=False, save_on_file=save_to_file)
-            print("Done")
 
     def set_mode_and_dir(self, directory, mode):
         if not isinstance(directory, Path):

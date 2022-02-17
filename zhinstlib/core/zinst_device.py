@@ -205,7 +205,7 @@ class ziVirtualDevice(zi.ziDAQServer):
         if save_on_file:
             daq_module.set('save/save', 1)
         tstart = time.time()
-        while not daq_module.finished() and not self._daqstopRequested:
+        while not daq_module.finished() or not self._daqstopRequested:
             if time.time() - tstart > timeout:
                 raise Exception(f"Timeout occured after {timeout} seconds. Are streaming nodes enabled?"
                                 "Has a valid signal been specified?")
