@@ -643,6 +643,12 @@ class PyQtziVirtualDevice(QObject):
             raise Exception("The module has not been set and added to the daqmodules yet.")
         self.daqmodules[daq_module_name].finish()
 
+    def remove_daqmodule(self, daq_module_name=None):
+        if daq_module_name not in self.daqmodules.keys():
+            raise Exception("The module has not been set and added to the daqmodules yet.")
+        else:
+            self.daqmodules.pop(daq_module_name)
+
     def set_aux_offset(self, aux=0, offset=0):
         cmd = self.__baseaddress + f'/auxouts/{aux}/offset'
         self.ziServer.setDouble(cmd, offset)
