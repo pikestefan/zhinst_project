@@ -11,9 +11,10 @@ import re
 import h5py
 import time
 import datetime
+import matplotlib.pyplot as plt
 
 from zhinstlib.core.zinst_device import PyQtziVirtualDevice
-from zhinstlib.core.custom_data_containers import LockinData
+from zhinstlib.core.custom_data_containers import LockinData, RingdownContainer
 from zhinstlib.custom_widgets.wafer_dialogs import WaferDialogGui, ChooseModeDialog
 from zhinstlib.custom_widgets.mouse_interacting_lineedit import InteractingLineEdit
 from zhinstlib.custom_widgets.radio_btn_collection import RadioBtnList
@@ -21,6 +22,8 @@ from zhinstlib.custom_widgets.radio_btn_collection import RadioBtnList
 
 class WaferAnalyzer(QMainWindow):
     signal_data_acquired = pyqtSignal()
+    signal_data_saved = pyqtSignal(float)
+    signal_data_uploaded = pyqtSignal(str)
 
     def __init__(self):
         super(WaferAnalyzer, self).__init__()
@@ -54,6 +57,8 @@ class WaferAnalyzer(QMainWindow):
         self._saving_timer = QTimer()
         self._saving_timer.timeout.connect(self.acquire_data)
         self.signal_data_acquired.connect(self.save_data, Qt.QueuedConnection)
+        self.signal_data_saved.connect(self.display_file_size, Qt.QueuedConnection)
+        self.signal_data_uploaded.connect(self.set_loaded_cell_style)
         ######
 
         self.initUI()
@@ -70,16 +75,19 @@ class WaferAnalyzer(QMainWindow):
 
         self.quadratureRadioButtons = RadioBtnList(**btn_dictionary)
 
+        self.data_plot = pg.PlotDataItem()
+        self.dataPlotWidget.addItem(self.data_plot)
+
         #Signal connections
         self.executionButton.toggled.connect(self.set_chip_interaction)
-        self.refreshPlotsButton.clicked.connect(self.load_ringdowns)
+        self.refreshPlotsButton.clicked.connect(self.refresh_plot)
+        self.loadDataButton.clicked.connect(self.load_ringdowns)
         self.autorefreshCheckBox.stateChanged.connect(self.set_refreshbtn_status)
         self.modeSelector.currentIndexChanged.connect(self.set_active_mode)
-        self.quadratureRadioButtons.btn_toggled.connect(self.test)
+        self.quadratureRadioButtons.btn_toggled.connect(self.refresh_plot)
         self.quadratureRadioButtons.setChecked('R')
-
-    def test(self, val):
-        pass
+        self.ringdownSpinBox.valueChanged.connect(self.update_plotting_demod_combobox)
+        self.demodComboBox.currentIndexChanged.connect(self.refresh_plot)
 
     def open_mode_dialog(self):
         self.wafer_mode_selector = ChooseModeDialog()
@@ -105,7 +113,9 @@ class WaferAnalyzer(QMainWindow):
                                  floor(0.65 * container_width / self.cols))
 
         self.interactive_wafer = InteractiveWafer(self.rows, self.cols, lateral_size, active_chips=self._existing_chips)
+
         self.interactive_wafer.signal_id_changed.connect(self.set_active_chip)
+        self.interactive_wafer.signal_id_changed.connect(self.update_spinbox)
 
         # If the wafer is in loading mode, then every time you click a chip, check how many modes there are and update
         # the combobox
@@ -177,7 +187,7 @@ class WaferAnalyzer(QMainWindow):
                              'saving_onread':False
                              }
             stream_read_kwargs = {'read_duration': 9000,
-                                  'burst_duration': 1}
+                                  'burst_duration': 0.5}
 
             subscribe_demods = []
             for chbox in self.demod_collection:
@@ -204,7 +214,7 @@ class WaferAnalyzer(QMainWindow):
             ringdown_name = (4 - len(file_num)) * "0" + file_num  # Eg: file_num = 3, then ringdown_name = 0003
             self._current_savefile = saving_dir / f"ringdown{ringdown_name}.h5"
             with h5py.File(self._current_savefile, 'w') as h5file:
-                h5kwargs = {'shape':(0,), 'maxshape': (None,), 'dtype':np.float32}
+                h5kwargs = {'shape':(0,), 'maxshape': (None,), 'dtype':np.float64}
                 for path in self._sig_paths:
                     h5file.create_dataset(name=path + '/timestamp', **h5kwargs)
                     h5file.create_dataset(name=path + '/value', **h5kwargs)
@@ -221,31 +231,42 @@ class WaferAnalyzer(QMainWindow):
         self.signal_data_acquired.emit()
 
     def save_data(self):
-        returned_sig_paths = [signal_path.lower() for signal_path in self._temp_data.keys()]
-        with h5py.File(self._current_savefile, 'a') as file:
-            for signal_path in self._sig_paths:
-                if signal_path in returned_sig_paths:
-                    #If the subscribed signal is present in the read data paths, read it, and then append it to the
-                    #h5 file.
-                    for ii, signal_burst in enumerate(self._temp_data[signal_path.lower()]):
-                        time_ax = signal_burst["timestamp"][0, :]
-                        value = signal_burst["value"][0, :]
+        if isinstance(self._temp_data, dict):
+            returned_sig_paths = [signal_path.lower() for signal_path in self._temp_data.keys()]
+        else:
+            return
 
-                        dset_time = file[signal_path + '/timestamp']
-                        dset_value = file[signal_path + '/value']
+        for signal_path in self._sig_paths:
+            if signal_path in returned_sig_paths:
+                #If the subscribed signal is present in the read data paths, read it, and then append it to the
+                #h5 file.
+                time_ax_tot, value_tot = np.array([]), np.array([])
+                for ii, signal_burst in enumerate(self._temp_data[signal_path.lower()]):
+                    time_ax = signal_burst["timestamp"][0, :]
+                    value = signal_burst["value"][0, :]
 
-                        dset_time.resize( (dset_time.shape[0] + len(time_ax), ) )
-                        dset_value.resize( (dset_value.shape[0] + len(value), ) )
+                    time_ax_tot = np.concatenate((time_ax_tot, time_ax))
+                    value_tot = np.concatenate((value_tot, value))
 
-                        dset_time[-len(time_ax):] = time_ax
-                        dset_value[-len(value):] = value
+                with h5py.File(self._current_savefile, 'a') as file:
+                    dset_time = file[signal_path + '/timestamp']
+                    dset_value = file[signal_path + '/value']
+
+                    dset_time.resize((dset_time.shape[0] + len(time_ax_tot),))
+                    dset_value.resize((dset_value.shape[0] + len(value_tot),))
+
+                    dset_time[-len(time_ax_tot):] = time_ax_tot
+                    dset_value[-len(value_tot):] = value_tot
+
+        filesizeMb = self._current_savefile.stat().st_size / 1e6
+        self.signal_data_saved.emit(filesizeMb)
 
     def stop_acquisition(self, buttonval):
         if buttonval is False and self.active_chip:
             if self._daqmodule_name:
                 self.zi_device.stop_daqmodule(self._daqmodule_name)
                 #Read one last time
-                self.save_data()
+                self.zi_device.remove_daqmodule(self._daqmodule_name)
                 self._saving_timer.stop()
             self._daqmodule_name = None
             self._sig_paths = None
@@ -255,23 +276,20 @@ class WaferAnalyzer(QMainWindow):
     def set_wafer_mode_and_dir(self, directory, mode):
         if not isinstance(directory, Path):
             directory = Path(directory)
-        self.wafer_directory = directory
         self._creation_mode = mode
 
         if self._creation_mode:
             self.call_wafer_creation_dialog()
+            self.wafer_directory = directory
         else:
             self.executionButton.setEnabled(False)
-            self.get_wafer_info(self.wafer_directory)
+            self.get_wafer_info(directory)
 
     def get_wafer_info(self, directory):
         """
         Called when loading an existing wafer
         """
-        if not isinstance(directory, Path):
-            directory = Path(directory)
-
-        with open(directory / 'wafer_info.txt', 'r') as file:
+        with open(directory /'wafer_info.txt', 'r') as file:
             for line in file.readlines():
                 if "Rows" in line:
                     chip_rows = int(line.split(":")[1].strip())
@@ -289,6 +307,7 @@ class WaferAnalyzer(QMainWindow):
                 if match is not None:
                     self._existing_chips.append(match.group(0))
 
+        self.wafer_directory = directory.parents[0]
         self.set_wafer_settings(chip_rows, chip_cols, max_mode, directory.name, zurich_id)
 
     def prepare_combobox(self):
@@ -301,7 +320,7 @@ class WaferAnalyzer(QMainWindow):
         This function gets called when the wafer is in loading mode. It looks into the folder contents and updates the
         maximum visible items in the comboxbox
         """
-        direc = self.wafer_directory / id
+        direc = self.wafer_directory / self.wafer_name / id
         pattern = "mode(\d+)"
 
         modes_in_folder = []
@@ -337,44 +356,116 @@ class WaferAnalyzer(QMainWindow):
         self.active_mode = val+1
 
     def load_ringdowns(self):
-        active_name = self.interactive_wafer.current_active
+        if self.active_chip == '':
+            print("No chip selected.")
+            return
 
-        if active_name is not None:
-            ringdown_path = self.wafer_directory / active_name / f"mode{self.active_mode}"
-            basepath = f'{self.zurich_id}/demods'
-            if active_name not in self.loaded_data.keys():
-                mode_dictionary = dict()
-                self.loaded_data[active_name] = mode_dictionary
-            elif self.active_mode in self.loaded_data[active_name].keys():
-                print("Data already in memory.")
-                return
+        ringdown_path = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode}"
+        basepath = f'{self.zurich_id}/demods'
+        ringdowns_in_path = list(ringdown_path.glob('*h5'))
+
+        if len(ringdowns_in_path) == 0:
+            print("No data in the folder.")
+            return
+
+        #TODO: add a step to check for the number of ringdowns in a mode. If there are more than loaded, then add them
+        if self.active_chip not in self.loaded_data.keys():
+            mode_dictionary = dict()
+            self.loaded_data[self.active_chip] = mode_dictionary
+        elif self.active_mode in self.loaded_data[self.active_chip].keys():
+            print("Data already in memory.")
+            return
+        else:
+            mode_dictionary = self.loaded_data[self.active_chip]
+
+        ringdown_collection = RingdownContainer()
+        for ringdown in ringdowns_in_path:
+            ringdown_li_data = LockinData()
+            with h5py.File(ringdown, 'r') as file:
+                demod_templist = [int(key) for key in file[basepath].keys()]
+                for demod in demod_templist:
+                    timestamp = file[basepath + f"/{demod}/sample.frequency/timestamp"][:]
+                    timestamp = (timestamp - timestamp[0]) / 210e6
+
+                    frequency = file[basepath + f"/{demod}/sample.frequency/value"][:].mean()
+                    x_quad = file[basepath + f"/{demod}/sample.x/value"][:]
+                    y_quad = file[basepath + f"/{demod}/sample.y/value"][:]
+
+                    ringdown_li_data.create_demod(demod, time_axis=timestamp,
+                                                  x_quad=x_quad, y_quad=y_quad,
+                                                  frequency=frequency)
+
+            ringdown_collection.add_ringdown_sequence(ringdown_li_data)
+
+        mode_dictionary[self.active_mode] = ringdown_collection
+
+        self.update_spinbox()
+        self.signal_data_uploaded.emit(self.active_chip)
+
+
+    def update_spinbox(self):
+        """
+        Called when loading new data, when clicking the mode selector, and when selecting a new chip.
+        """
+        if (self.active_chip in self.loaded_data.keys()
+            and self.active_mode in self.loaded_data[self.active_chip].keys()):
+            ringdown_container = self.loaded_data[self.active_chip][self.active_mode]
+            self.ringdownSpinBox.setMaximum(ringdown_container.get_ringdown_num())
+            if self.ringdownSpinBox.value()==1:
+                self.ringdownSpinBox.valueChanged.emit(1)
             else:
-                mode_dictionary = self.loaded_data[active_name]
+                self.ringdownSpinBox.setValue(1)
 
-            ringdown_list = []
-            for ringdown in ringdown_path.glob('*h5'):
-                ringdown_li_data = LockinData()
-                with h5py.File(ringdown, 'r') as file:
-                    demod_num = len(file[basepath].keys())
-                    for demod in range(demod_num):
-                        timestamp = file[basepath + f"/{demod}/sample.frequency/timestamp"][:]
-                        timestamp = (timestamp - timestamp[0]) / 210e6
-
-                        frequency = file[basepath + f"/{demod}/sample.frequency/value"][:].mean()
-                        x_quad = file[basepath + f"/{demod}/sample.x/value"][:]
-                        y_quad = file[basepath + f"/{demod}/sample.y/value"][:]
-
-                        ringdown_li_data.create_demod(demod, time_axis=timestamp, x_quad=x_quad, y_quad=y_quad,
-                                                      frequency=frequency)
-
-                ringdown_list.append(ringdown_li_data)
-
-            mode_dictionary[self.active_mode] = ringdown_list
-
-            self.refresh_plot()
+    def update_plotting_demod_combobox(self, selected_ringdown):
+        """
+        Called when loading new data, when clicking the mode selector, when selecting a new chip, and when changin the ringdown.
+        """
+        if (self.active_chip in self.loaded_data.keys()
+            and self.active_mode in self.loaded_data[ self.active_chip].keys()):
+            ringdown_container = self.loaded_data[self.active_chip][self.active_mode]
+            self.demodComboBox.blockSignals(True)
+            self.demodComboBox.clear()
+            availdemodlist = ringdown_container.get_ringdown_demods(selected_ringdown-1) #-1 because of python indexing
+            for demod in availdemodlist:
+                self.demodComboBox.addItem(str(demod+1))
+            idx = self.demodComboBox.findText(str(availdemodlist[0] + 1))
+            self.demodComboBox.setCurrentIndex(idx)
+            self.demodComboBox.blockSignals(False)
+            self.demodComboBox.currentIndexChanged.emit(idx)
 
     def refresh_plot(self):
-        pass
+        if (self.active_chip in self.loaded_data.keys() and
+                self.active_mode in self.loaded_data[ self.active_chip].keys()):
+
+            ringdown_container = self.loaded_data[self.active_chip][self.active_mode]
+
+            curr_rdown = self.ringdownSpinBox.value() - 1 #Always translate user-friendly data to python indices
+            curr_demod = int(self.demodComboBox.currentText()) - 1
+            rdown_data = ringdown_container.ringdown(curr_rdown).demod(curr_demod)
+
+            requested_quad = self.quadratureRadioButtons.get_active_name()
+            timestamp = rdown_data.time_axis
+            if requested_quad == 'R':
+                plot_quad = rdown_data.r_quad
+                self.dataPlotWidget.setLabel('left', 'Amplitude (V)')
+            elif requested_quad == 'x':
+                plot_quad = rdown_data.x_quad
+                self.dataPlotWidget.setLabel('left', 'Amplitude (V)')
+            elif requested_quad == 'y':
+                plot_quad = rdown_data.y_quad
+                self.dataPlotWidget.setLabel('left', 'Amplitude (V)')
+            elif requested_quad == 'phase':
+                plot_quad = rdown_data.phase_quad
+                self.dataPlotWidget.setLabel('left', 'Phase (rad)')
+            self.dataPlotWidget.setLabel('bottom', 'Time (s)')
+            self.data_plot.setData(timestamp, plot_quad)
+
+    def display_file_size(self, filesize):
+        if self._current_savefile is not None:
+            self.fileSizeDisplay.setValue(filesize)
+
+    def set_loaded_cell_style(self, chipID):
+        self.interactive_wafer.chip_collection[chipID].set_active_stylesheet("data loaded")
 
     def abort_window(self):
         sys.exit()
