@@ -88,6 +88,7 @@ class WaferAnalyzer(QMainWindow):
         self.quadratureRadioButtons.setChecked('R')
         self.ringdownSpinBox.valueChanged.connect(self.update_plotting_demod_combobox)
         self.demodComboBox.currentIndexChanged.connect(self.refresh_plot)
+        self.clearMemoryBtn.clicked.connect(self.clear_memory)
 
     def open_mode_dialog(self):
         self.wafer_mode_selector = ChooseModeDialog()
@@ -466,6 +467,12 @@ class WaferAnalyzer(QMainWindow):
 
     def set_loaded_cell_style(self, chipID):
         self.interactive_wafer.chip_collection[chipID].set_active_stylesheet("data loaded")
+
+    def set_not_loaded_cell_style(self, chipID):
+        self.interactive_wafer.chip_collection[chipID].set_active_stylesheet("standard")
+
+    def clear_memory(self):
+        self.loaded_data = dict()
 
     def abort_window(self):
         sys.exit()

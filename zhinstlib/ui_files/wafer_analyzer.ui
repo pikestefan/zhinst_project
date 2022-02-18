@@ -285,6 +285,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="clearMemoryBtn">
+         <property name="text">
+          <string>Clear memory</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QCheckBox" name="autorefreshCheckBox">
          <property name="text">
           <string>Autofrefresh</string>

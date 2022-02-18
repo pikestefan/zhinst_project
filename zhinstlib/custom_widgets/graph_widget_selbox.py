@@ -50,7 +50,7 @@ class MyWidget(QtWidgets.QWidget):
     def paintEvent(self, event):
         qp = QtGui.QPainter(self)
         br = QtGui.QBrush(QtGui.QColor(100, 10, 10, 40))
-        qp.setBrush(br)   
+        qp.setBrush(br)
         qp.drawRect(QtCore.QRect(self.begin, self.end))
 
     def mousePressEvent(self, event):
