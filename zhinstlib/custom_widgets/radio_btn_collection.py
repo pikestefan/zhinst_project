@@ -30,3 +30,7 @@ class RadioBtnList(QObject):
         btn_idx = self._names.index(btn_name)
         activate_btn = self._btns[btn_idx]
         activate_btn.setChecked(True)
+
+    def get_active_name(self):
+        btn_idx = self._btns.index(self._current_active)
+        return self._names[btn_idx]
