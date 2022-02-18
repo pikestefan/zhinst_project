@@ -13,9 +13,9 @@ class InteractingLineEdit(QTextEdit):
         self.setFixedSize(self.fixed_size, self.fixed_size)
         self._stylesheet_modes = {"standard": {"no hover": "background-color:rgb(204,204,204);border: 1px solid black;",
                                               "hover": "background-color:rgb(204,204,204);border: 3px solid red;",
-                                              "clicked" : "background-color:rgb(158,255,245);border: 3px solid rgb(0,148,49);"},
-                                 "data loaded": {"no hover": "background-color:rgb(204,204,204);border: 1px solid rgb(0,118,19);",
-                                                 "hover": "background-color:rgb(204,204,204);border: 3px solid rgb(0,118,19);",
+                                              "clicked" : "background-color:rgb(255,183,67);border: 3px solid rgb(0,148,49);"},
+                                 "data loaded": {"no hover": "background-color:rgb(155,225,199);border: 1px solid rgb(0,0,0);",
+                                                 "hover": "background-color:rgb(155,225,199);border: 3px solid rgb(0,118,19);",
                                                  "clicked" : "background-color:rgb(158,255,245);border: 3px solid rgb(0,148,49);"},
                                  "data missing": {"no hover": "background-color:rgb(150,150,150);border: 1px solid black;",
                                                   "hover": "background-color:rgb(204,204,204);border: 3px solid red;",
