@@ -20,7 +20,14 @@ def chunkify_timetrace(signal, reference):
     return signal_chunks
 
 def chunkify_timetrace(signal, reference):
-    idxs = np.arange(0, len(signal) - 1)
+    """
+    :param signal: can be a (N,) array or a (M,N) array
+    :param reference: a (N,) TTL-like array containing the reference to chunkify
+    :return: list of chunkified signal
+    """
+    if signal.ndim ==1:
+        signal = signal[np.newaxis, :]
+    idxs = np.arange(0, signal.shape[1] - 1)
 
     reference = np.where(reference >= reference.mean(), 1, 0).astype(int)
 
@@ -30,12 +37,16 @@ def chunkify_timetrace(signal, reference):
     diff_ref, idxs = diff_ref[diff_nonzero], idxs[diff_nonzero]
 
     signal_chunks = []
+    #TODO: clean up this horrible mess of if clauses
     for ii in range(len(idxs) - 1):
         if (diff_ref[ii] == -1) and (diff_ref[ii + 1] == 1):
-            signal_chunks.append(signal[idxs[ii]:idxs[ii + 1]])
+            signal_chunks.append(signal[:, idxs[ii]:idxs[ii + 1]])
 
     if diff_ref[-1] == -1:
-        signal_chunks.append(signal[idxs[-1]:])
+        signal_chunks.append(signal[:, idxs[-1]:])
+
+    if signal.ndim == 1:
+        signal_chunks = signal_chunks[0]
 
     return signal_chunks
 
