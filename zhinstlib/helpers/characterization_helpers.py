@@ -1,9 +1,11 @@
+import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Circle
 from zhinstlib.data_processing.fitting_funcs import nlin_rdown
 from inspect import signature
+from math import sqrt
 
 
-def create_wafer(cells=(5, 5), chip_data=None, extra_space=0, pad_letter=0, bad_thresh=1e6, good_thresh=10e6,
+def create_wafer(savedir, cells=(5, 5), chip_data=None, extra_space=0, pad_letter=0, bad_thresh=1e6, good_thresh=10e6,
                  figsize=(15.5, 15.5)):
     """
     :param tuple cells: number of cells in the wafer. The four corners are not printed out.
@@ -19,11 +21,7 @@ def create_wafer(cells=(5, 5), chip_data=None, extra_space=0, pad_letter=0, bad_
     chip_info = [[None for jj in range(cells[1])] for ii in range(cells[0])]
 
     for data in chip_data:
-        name, freq, Q = data
-        if len(data) == 3:
-            extra_info = None
-        else:
-            extra_info = data[-1]
+        name, freq, Q, extra_info = data
         col_letter = ord((name[0] if name[0].isalpha() else name[1]).upper()) - ord('A')
         row_number = int(name[0] if name[0].isdigit() else name[1]) - 1
         chip_info[row_number][col_letter] = [freq, Q, extra_info]
@@ -59,6 +57,8 @@ def create_wafer(cells=(5, 5), chip_data=None, extra_space=0, pad_letter=0, bad_
                 letter = str(ii)
                 ax.text(-sq_edge / 2 - pad_letter, y_corner + single_cell_side / 2, letter, label_kwargs)
             if ii == 1:
+                label_kwargs['ha'] = 'center'
+                label_kwargs['va'] = 'bottom'
                 letter = chr(ord('A') + (jj - 1))
                 ax.text(x_corner + single_cell_side / 2, sq_edge / 2 + pad_letter, letter, label_kwargs)
             if ((ii, jj) != (1, 1)) and ((ii, jj) != (cells[0], 1)) and ((ii, jj) != (1, cells[1])) and (
@@ -86,6 +86,8 @@ def create_wafer(cells=(5, 5), chip_data=None, extra_space=0, pad_letter=0, bad_
                                 va='center',
                                 fontsize=14)
                 ax.add_artist(recty)
+
+    plt.savefig(savedir, bbox_inches = 'tight')
 
 
 def get_Q_factor(ringdown, res_freq, threshold=200e-6, p0_nogamma=None, fitting_func = nlin_rdown, *args, **kwargs):
