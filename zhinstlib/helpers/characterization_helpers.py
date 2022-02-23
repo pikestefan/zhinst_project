@@ -38,6 +38,13 @@ def create_wafer(savedir, cells=(5, 5), chip_data=None, extra_space=0, pad_lette
 
     single_cell_side = sq_edge / cells[0]
 
+    #########
+    # Here calculate the default fontsize. The text fits nicely in the square for 5x5 cells and fontsize 14.
+    fontsize = 15
+    scale_factor = 5 / cells[0]
+    fontsize = int(scale_factor * fontsize)
+    #########
+
     circ = Circle((0, 0), rad, facecolor=[.7, .7, .7])
 
     clip_size = 0.95 * rad * 2
@@ -65,7 +72,7 @@ def create_wafer(savedir, cells=(5, 5), chip_data=None, extra_space=0, pad_lette
                     (ii, jj) != (cells[0], cells[1])):
                 if chip_info[ii - 1][jj - 1] is None:
                     recty = Rectangle((x_corner, y_corner), single_cell_side, single_cell_side,
-                                      facecolor='k', edgecolor='k')
+                                      facecolor= [.4,.4,.4], edgecolor='k', hatch=r'/...')
                 else:
                     freq, Q, extra_info = chip_info[ii - 1][jj - 1]
 
@@ -78,13 +85,13 @@ def create_wafer(savedir, cells=(5, 5), chip_data=None, extra_space=0, pad_lette
                     recty = Rectangle((x_corner, y_corner), single_cell_side, single_cell_side,
                                       facecolor=facecolor, edgecolor='k', alpha=.7)
                     if extra_info is None:
-                        annotate_string = 'Freq: {:.3f} MHz\n\nQ: {:.3f} M'.format(freq / 1e6, Q / 1e6)
+                        annotate_string = r'$\nu_0$' + ': {:.3f} MHz\n\nQ: {:.1f} M'.format(freq / 1e6, Q / 1e6)
                     else:
-                        annotate_string = 'Freq: {:.3f} MHz\n\nQ: {:.3f} M\n\n{:s}'.format(freq / 1e6, Q / 1e6, extra_info)
+                        annotate_string = r'$\nu_0$' + ': {:.3f} MHz\n\nQ: {:.1f} M\n\n{:s}'.format(freq / 1e6, Q / 1e6, extra_info)
                     ax.annotate(annotate_string,
                                 (x_corner + single_cell_side / 2, y_corner + single_cell_side / 2), ha='center',
                                 va='center',
-                                fontsize=14)
+                                fontsize=fontsize)
                 ax.add_artist(recty)
 
     plt.savefig(savedir, bbox_inches = 'tight')
