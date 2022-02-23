@@ -197,6 +197,8 @@ class WaferAnalyzer(QMainWindow):
         if self._creation_mode:
             self.create_wafer_folder(self.wafer_directory, self.wafer_name,
                                      self.rows, self.cols, self.mode_num )
+            for ii in range(self.mode_num):
+                self.wafer_list.append(WaferContainer(ii))
             self.connect_to_zurich(lockinID)
         self.add_wafer_layout()
 
@@ -355,13 +357,14 @@ class WaferAnalyzer(QMainWindow):
 
     def update_wafer_image(self):
         active_wafer =  self.wafer_list[self.active_mode]
+
         available_chips = active_wafer.get_available_chips()
         loaded_chips = active_wafer.get_loaded_chips()
 
         for chipID, chip in self.interactive_wafer.chip_collection.items():
             if (chipID == self.active_chip) and chip.isclicked:
                 chip.unclick()
-            if chipID not in available_chips:
+            if chipID not in available_chips and not self._creation_mode:
                 chip.setActivated(False)
             else:
                 chip.setActivated(True)
@@ -643,12 +646,11 @@ class WaferAnalyzer(QMainWindow):
         wafer = self.wafer_list[self.active_mode]
 
         data_list = []
-        for chipID in wafer.get_available_chips():
-            if chipID in wafer.get_loaded_chips():
-                chip = wafer.get_ringdowns(chipID)
-                if chip.hasQs():
-                    freq, Q = chip.getQs()
-                    data_list.append([chipID, freq, Q, None])
+        for chipID in wafer.get_loaded_chips():
+            chip = wafer.get_ringdowns(chipID)
+            if chip.hasQs():
+                freq, Q = chip.getQs()
+                data_list.append([chipID, freq, Q, None])
 
         result_dir = self.wafer_directory / self.wafer_name / 'results' / f'mode{self.active_mode+1}'
         result_dir.mkdir(parents=True, exist_ok=True)
