@@ -397,7 +397,7 @@ class WaferAnalyzer(QMainWindow):
         ringdowns_in_path = list(ringdown_path.glob('*h5'))
 
         if len(ringdowns_in_path) == 0:
-            print("No data in the folder.")
+            print(f"No data in the folder for chip {active_chip} and mode {active_mode}.")
             return
 
         current_wafer = self.wafer_list[active_mode]
