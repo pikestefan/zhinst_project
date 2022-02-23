@@ -4,6 +4,39 @@ from zhinstlib.data_processing.data_manip import chunkify_timetrace
 from data_processing.fitting_funcs import lin_rdown
 from scipy.optimize import curve_fit
 
+class WaferFitContainer(object):
+    """
+    A class used to store in memory the fit results for all the chips and all the modes, even when the actual data are deleted
+    """
+    def __init__(self):
+        self._mode_dictionary = dict() #Each item will be a dictionary of chips
+
+    def set_freq_Q(self, mode_frequency, Qfactor, mode, chipID):
+        if mode not in self._mode_dictionary.keys():
+            self._mode_dictionary[mode] = dict()
+
+        selected_mode = self._mode_dictionary[mode]
+        selected_mode[chipID] = [mode_frequency, Qfactor]
+
+    def mode(self, mode_idx):
+        return self._mode_dictionary[mode]
+
+    def hasQs(self, mode_idx, chipID):
+        if mode_idx in self._mode_dictionary and chipID in self._mode_dictionary[mode_idx]:
+            chip = self._mode_dictionary[mode_idx][chipID]
+            hasqs = (chip[0] is not None) and (chip[1]) is not None
+        else:
+            hasqs = False
+        return hasqs
+
+    def getQs(self, mode_idx, chipID):
+        return self._mode_dictionary[mode_idx][chipID]
+
+    def get_chips_with_Qs(self, mode_idx):
+        return self._mode_dictionary[mode_idx].keys()
+
+
+
 """
 Here there are some nested classes:
 - WaferContainer: a collection of chips for a given mechanical mode. Each chip is a RingdownContainer.
@@ -13,15 +46,15 @@ Here there are some nested classes:
                             fit results are stored in this last data container.
 """
 
-class WaferContainer(object):
+class WaferDataContainer(object):
     def __init__(self, mode):
-        super(WaferContainer, self).__init__()
+        super(WaferDataContainer, self).__init__()
         self.mode = mode
         self._chip_ringdowns = dict()
         self._available_chips = []
 
     def add_ringdowns(self, chipID, ringdown_container):
-        if not isinstance(ringdown_container, RingdownContainer):
+        if not isinstance(ringdown_container, RingdownDataContainer):
             print("The ringdowns passed must by an instance of RingdownContainer")
             return
 
@@ -54,7 +87,7 @@ class WaferContainer(object):
         self._chip_ringdowns.pop(chipID)
 
 
-class RingdownContainer(object):
+class RingdownDataContainer(object):
     """
     A container which is essentially is a collection of lock-in data. Used to store the different ringdowns.
     """
@@ -204,7 +237,7 @@ class LockinData(object):
 
     def fit_demod_decay(self, demod_idx, timerange = None):
         signal_demod = self._demods[demod_idx]
-        success_flag = -1
+        success_flag = 0
         if not signal_demod.isFitted():
             if (timerange is not None) and (len(timerange) == 2):
                 timeaxmask = np.logical_and( signal_demod.time_axis >= timerange[0],
@@ -226,14 +259,16 @@ class LockinData(object):
             y0_guess = 0
 
             try:
-                optimal_pars, cov_mat = curve_fit(lin_rdown, x_ax_fit, y_ax_fit, p0 = [gamma_guess, y0_guess, amp_guess],
+                fitfunc = lin_rdown # Here in case it is going to be replaced by some user-defined function
+                optimal_pars, cov_mat = curve_fit(fitfunc, x_ax_fit, y_ax_fit, p0 = [gamma_guess, y0_guess, amp_guess],
                                                   maxfev=10000, gtol = 1e-12)
 
                 signal_demod.set_mechmode_gamma(optimal_pars[0])
-                signal_demod.set_fitted_data( np.vstack( (x_ax_fit+start_time, lin_rdown(x_ax_fit, *optimal_pars)) ) )
-                success_flag = 0
+
+                signal_demod.set_fit_info( [optimal_pars, start_time, x_ax_fit[-1], fitfunc] )
+
             except:
-                pass
+                success_flag = -1
 
         return success_flag
 
@@ -250,7 +285,9 @@ class DemodulatorDataContainer(object):
         self.r_quad, self.phase_quad = None, None
 
         self._mechmode_gamma = None
-        self._fitted_time_amp_quad = None
+
+        #should be a list ordered as: [optimal fit pars, start time, stop time, fit function]
+        self._fit_info = None
 
     def get_ampphase_quads(self, x_quad=None, y_quad=None):
         if x_quad is not None and y_quad is not None:
@@ -268,14 +305,17 @@ class DemodulatorDataContainer(object):
         return self._mechmode_gamma
 
     def isFitted(self):
-        isfitted = self._fitted_time_amp_quad is not None
+        isfitted = self._fit_info is not None
         return isfitted
 
     def get_fitted_data(self):
-        return self._fitted_time_amp_quad
+        opt_pars, start, stop, fitfunc = self._fit_info
+        x_ax = np.linspace(0, stop, 1000) # Hardcoded value to ensure the looks of a smooth fit function in the plot.
+        y_ax = fitfunc(x_ax, *opt_pars)
+        return np.vstack((x_ax+start, y_ax))
 
-    def set_fitted_data(self, array):
-        self._fitted_time_amp_quad = array
+    def set_fit_info(self, fit_info):
+        self._fit_info = fit_info
 
 
 
