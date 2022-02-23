@@ -1,6 +1,6 @@
 import numpy as np
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QTimer, Qt
-from PyQt5.QtWidgets import QMainWindow, QCheckBox, QWidget, QLabel, QGridLayout, QSpacerItem, QSizePolicy, QApplication
+from PyQt5.QtWidgets import QMainWindow, QCheckBox, QApplication, QButtonGroup
 from PyQt5 import uic
 import os
 import sys
@@ -9,15 +9,14 @@ from math import sqrt, floor
 import pyqtgraph as pg
 import re
 import h5py
-import time
 import datetime
-import matplotlib.pyplot as plt
+from operator import itemgetter
 
 from zhinstlib.core.zinst_device import PyQtziVirtualDevice
-from zhinstlib.core.custom_data_containers import LockinData, RingdownContainer
+from zhinstlib.core.custom_data_containers import LockinData, RingdownContainer, WaferContainer
 from zhinstlib.custom_widgets.wafer_dialogs import WaferDialogGui, ChooseModeDialog
-from zhinstlib.custom_widgets.mouse_interacting_lineedit import InteractingLineEdit
-from zhinstlib.custom_widgets.radio_btn_collection import RadioBtnList
+from zhinstlib.custom_widgets.interactive_wafer import InteractiveWafer
+from zhinstlib.helpers.characterization_helpers import create_wafer
 
 
 class WaferAnalyzer(QMainWindow):
@@ -41,8 +40,7 @@ class WaferAnalyzer(QMainWindow):
                                   #Determines if the Zurich is connected or not, plus some extra behaviours.
         self.active_mode = 0 #The mechanical mode currently checked.
         self.active_chip = '' #The name of the active chip
-        self.loaded_data = dict() #The dictionary containing the loaded data. The keys correspond to the chip keys.
-                                  #Each dictionary element is another dictionary, named after each mode.
+        self.wafer_list = [] #A list of wafer "slices". Each slice corresponds to a mechanical mode.
         self._existing_chips = [] #This list will be filled in wafer loading mode. Disables the missing chip folders.
         self.zurich_id = ''
 
@@ -58,7 +56,8 @@ class WaferAnalyzer(QMainWindow):
         self._saving_timer.timeout.connect(self.acquire_data)
         self.signal_data_acquired.connect(self.save_data, Qt.QueuedConnection)
         self.signal_data_saved.connect(self.display_file_size, Qt.QueuedConnection)
-        self.signal_data_uploaded.connect(self.set_loaded_cell_style)
+        self.signal_data_uploaded.connect(self.set_loaded_cell_style, Qt.QueuedConnection)
+        self.actionExportMode.triggered.connect(self.export_data)
         ######
 
         self.initUI()
@@ -68,27 +67,43 @@ class WaferAnalyzer(QMainWindow):
 
         self.executionButton.set_onoff_strings(['Stop recording', 'Start recording'])
 
-        btn_dictionary = {'R': self.rRadioBtn,
-                          'phase': self.phaseRadioBtn,
-                          'x':self.xRadioBtn,
-                          'y': self.yRadioBtn}
+        self.quadratureRadioButtons = QButtonGroup()
+        for ii, btn in enumerate([self.xRadioBtn, self.yRadioBtn, self.rRadioBtn, self.phaseRadioBtn]):
+            self.quadratureRadioButtons.addButton(btn)
+            self.quadratureRadioButtons.setId(btn, ii)
 
-        self.quadratureRadioButtons = RadioBtnList(**btn_dictionary)
+        self.rRadioBtn.setChecked(True)
 
-        self.data_plot = pg.PlotDataItem()
+        self.linlogRadioButtons = QButtonGroup()
+        for ii, btn in enumerate([self.linScaleRadioBtn, self.logScaleRadioBtn]):
+            self.linlogRadioButtons.addButton(btn)
+            self.linlogRadioButtons.setId(btn, ii)
+        self.linScaleRadioBtn.setChecked(True)
+
+        self.actionRadioButtons = QButtonGroup()
+        for ii, btn in enumerate([self.selRdownBtn, self.selChipBtn, self.selWaferBtn]):
+            self.actionRadioButtons.addButton(btn)
+            self.actionRadioButtons.setId(btn, ii)
+        self.selRdownBtn.setChecked(True)
+
+        self.data_plot = pg.PlotDataItem(pen = pg.mkPen(width = 1, color = 'w'))
+        self.fit_plot = pg.PlotDataItem(pen = pg.mkPen(width = 1, color = 'r'))
         self.dataPlotWidget.addItem(self.data_plot)
+        self.dataPlotWidget.addItem(self.fit_plot)
 
         #Signal connections
         self.executionButton.toggled.connect(self.set_chip_interaction)
-        self.refreshPlotsButton.clicked.connect(self.refresh_plot)
-        self.loadDataButton.clicked.connect(self.load_ringdowns)
-        self.autorefreshCheckBox.stateChanged.connect(self.set_refreshbtn_status)
+        self.loadSelectedButton.clicked.connect(self.load_single_ringdown)
+        self.loadAllButton.clicked.connect(self.load_all_chip_ringdowns)
         self.modeSelector.currentIndexChanged.connect(self.set_active_mode)
-        self.quadratureRadioButtons.btn_toggled.connect(self.refresh_plot)
-        self.quadratureRadioButtons.setChecked('R')
-        self.ringdownSpinBox.valueChanged.connect(self.update_plotting_demod_combobox)
+        self.quadratureRadioButtons.buttonToggled.connect(self.refresh_plot)
+        self.ringdownSpinBox.valueChanged.connect(self.update_plotting_demod_comboboxes)
+        self.linlogRadioButtons.buttonToggled.connect(self.set_linlogscale)
         self.demodComboBox.currentIndexChanged.connect(self.refresh_plot)
-        self.clearMemoryBtn.clicked.connect(self.clear_memory)
+        self.clearSelectedMemoryBtn.clicked.connect(self.clear_memory_selected)
+        self.clearAllMemoryBtn.clicked.connect(self.clear_memory)
+        self.chunkifyBtn.clicked.connect(self.chunkify_data)
+        self.fitBtn.clicked.connect(self.fit_data)
 
     def open_mode_dialog(self):
         self.wafer_mode_selector = ChooseModeDialog()
@@ -103,32 +118,53 @@ class WaferAnalyzer(QMainWindow):
             self.demod_collection.append(chbox)
 
     def add_wafer_layout(self):
+        lateral_size = self.set_wafer_widg_background()
+        self.interactive_wafer = InteractiveWafer(self.rows, self.cols, lateral_size)
+        self.interactive_wafer.signal_id_changed.connect(self.set_active_chip)
+        self.plotContainer.addWidget(self.interactive_wafer)
+
+        if self._creation_mode is False:
+            self.create_wafer_container_list(self.wafer_directory / self.wafer_name)
+
+        self.prepare_demodulatorselection_combobox()
+        self.show()
+
+    def set_wafer_widg_background(self):
         image_path = self.this_dir.parents[1] / 'artwork' / 'wafer.png'
         image_path = str(image_path).replace('\\', '/')
         style_command = f"QWidget#{self.backgroundWidget.objectName()} " + "{border-image:url(" + image_path + ")}"
         self.backgroundWidget.setStyleSheet(style_command)
 
         container_width = self.backgroundWidget.width()
+        lateral_size = min(floor(0.7 * container_width / self.rows),
+                           floor(0.7 * container_width / self.cols))
+        return lateral_size
 
-        lateral_size = min(floor(0.65 * container_width / self.rows),
-                                 floor(0.65 * container_width / self.cols))
+    def create_wafer_container_list(self, directory):
+        """
+        :param directory: the directory of the wafer
+        """
+        for mode in range(self.mode_num):
+            wcont = WaferContainer(mode)
+            self.wafer_list.append(wcont)
 
-        self.interactive_wafer = InteractiveWafer(self.rows, self.cols, lateral_size, active_chips=self._existing_chips)
-
-        self.interactive_wafer.signal_id_changed.connect(self.set_active_chip)
-        self.interactive_wafer.signal_id_changed.connect(self.update_spinbox)
-
-        # If the wafer is in loading mode, then every time you click a chip, check how many modes there are and update
-        # the combobox
-        if self._creation_mode is False:
-            self.interactive_wafer.signal_id_changed.connect(self.update_combobox_maxitems)
-        self.plotContainer.addWidget(self.interactive_wafer)
-
-        self.prepare_combobox()
-        self.show()
+        pattern_chip = r"([A-Z])(\d+)"
+        pattern_mode = r"mode(\d+)"
+        for wafer_directory_content in directory.iterdir():
+            if wafer_directory_content.is_dir():
+                match = re.match(pattern_chip, wafer_directory_content.name)
+                if match is not None:
+                    chipID = match.group(0)
+                    for chip_directory_content in wafer_directory_content.iterdir():
+                        match = re.match(pattern_mode, chip_directory_content.name )
+                        if match is not None:
+                            mode_num = int(match.group(1)) - 1
+                            self.wafer_list[mode_num].add_available_chip(chipID)
 
     def set_active_chip(self, id):
         self.active_chip = id
+        self.update_spinbox()
+        self.refresh_plot()
 
     def call_wafer_creation_dialog(self):
         self._dialog = WaferDialogGui()
@@ -181,7 +217,7 @@ class WaferAnalyzer(QMainWindow):
         if buttonval is not True:
             return
         if self.active_chip: #If no chip is selected, the ID is the empty string
-            saving_dir = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode}"
+            saving_dir = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode+1}"
             desired_signals = ['x', 'y', 'frequency']
 
             saving_kwargs = {'save_files': False,
@@ -300,68 +336,58 @@ class WaferAnalyzer(QMainWindow):
                     max_mode = int(line.split(":")[1].strip())
                 elif "Lock-in ID" in line:
                     zurich_id = line.split(":")[1].strip()
-        #Get the existing folders, and append them to the existing_chips attribute
-        pattern = r"([A-Z])(\d+)"
-        for directory_content in directory.iterdir():
-            if directory_content.is_dir():
-                match = re.match(pattern, directory_content.name)
-                if match is not None:
-                    self._existing_chips.append(match.group(0))
 
         self.wafer_directory = directory.parents[0]
         self.set_wafer_settings(chip_rows, chip_cols, max_mode, directory.name, zurich_id)
 
-    def prepare_combobox(self):
+    def prepare_demodulatorselection_combobox(self):
         base_string = "Mode {:d}"
         for ii in range(self.mode_num):
             self.modeSelector.addItem(base_string.format(ii + 1), ii)
 
-    def update_combobox_maxitems(self, id):
-        """
-        This function gets called when the wafer is in loading mode. It looks into the folder contents and updates the
-        maximum visible items in the comboxbox
-        """
-        direc = self.wafer_directory / self.wafer_name / id
-        pattern = "mode(\d+)"
-
-        modes_in_folder = []
-        for mode_folder in direc.iterdir():
-            match = re.match(pattern, mode_folder.name)
-            if mode_folder.is_dir() and match is not None:
-                modes_in_folder.append(int(match.group(1))-1)
-
-        for ii in range(self.mode_num):
-            if ii in modes_in_folder:
-                setenbl = True
-            else:
-                setenbl = False
-            self.modeSelector.model().item(ii).setEnabled(setenbl)
-
     def set_chip_interaction(self, value):
         for chip in self.interactive_wafer.chip_collection.values():
-            chip.interaction_enabled(not value)
-
-    def set_refreshbtn_status(self, checkval):
-        curr_act = self.interactive_wafer.current_active
-        if checkval == 2:
-            enabled_state = False
-            self.interactive_wafer.signal_id_changed.connect(self.load_ringdowns)
-        else:
-            enabled_state = True
-            self.interactive_wafer.signal_id_changed.disconnect()
-        if curr_act is not None:
-            self.interactive_wafer.chip_collection[curr_act].unclick()
-        self.refreshPlotsButton.setEnabled(enabled_state)
+            chip.set_interacting(not value)
 
     def set_active_mode(self, val):
-        self.active_mode = val+1
+        self.active_mode = val
+        self.update_wafer_image()
 
-    def load_ringdowns(self):
+    def update_wafer_image(self):
+        active_wafer =  self.wafer_list[self.active_mode]
+        available_chips = active_wafer.get_available_chips()
+        loaded_chips = active_wafer.get_loaded_chips()
+
+        for chipID, chip in self.interactive_wafer.chip_collection.items():
+            if (chipID == self.active_chip) and chip.isclicked:
+                chip.unclick()
+            if chipID not in available_chips:
+                chip.setActivated(False)
+            else:
+                chip.setActivated(True)
+
+            if chipID in loaded_chips:
+                chip.setDataUploaded(True)
+            else:
+                chip.setDataUploaded(False)
+
+            self.set_chip_info(chipID)
+
+    def load_all_chip_ringdowns(self):
+        for chipID, cell in self.interactive_wafer.chip_collection.items():
+            if cell.isActivated() and not cell.hasData():
+                self.load_ringdowns(chipID, self.active_mode)
+
+    def load_single_ringdown(self):
         if self.active_chip == '':
             print("No chip selected.")
             return
 
-        ringdown_path = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode}"
+        self.load_ringdowns(self.active_chip, self.active_mode)
+
+    def load_ringdowns(self, active_chip, active_mode):
+
+        ringdown_path = self.wafer_directory / self.wafer_name / active_chip / f"mode{active_mode+1}"
         basepath = f'{self.zurich_id}/demods'
         ringdowns_in_path = list(ringdown_path.glob('*h5'))
 
@@ -369,187 +395,276 @@ class WaferAnalyzer(QMainWindow):
             print("No data in the folder.")
             return
 
-        #TODO: add a step to check for the number of ringdowns in a mode. If there are more than loaded, then add them
-        if self.active_chip not in self.loaded_data.keys():
-            mode_dictionary = dict()
-            self.loaded_data[self.active_chip] = mode_dictionary
-        elif self.active_mode in self.loaded_data[self.active_chip].keys():
+        current_wafer = self.wafer_list[active_mode]
+
+        #TODO: add a step to check for the number of ringdowns in a mode. If in the folder there are more than loaded, add them
+
+        if active_chip in current_wafer.get_loaded_chips():
             print("Data already in memory.")
             return
         else:
-            mode_dictionary = self.loaded_data[self.active_chip]
+            ringdown_collection = RingdownContainer()
+            for ringdown in ringdowns_in_path:
+                ringdown_collection.load_ringdown(ringdown, basepath)
 
-        ringdown_collection = RingdownContainer()
-        for ringdown in ringdowns_in_path:
-            ringdown_li_data = LockinData()
-            with h5py.File(ringdown, 'r') as file:
-                demod_templist = [int(key) for key in file[basepath].keys()]
-                for demod in demod_templist:
-                    timestamp = file[basepath + f"/{demod}/sample.frequency/timestamp"][:]
-                    timestamp = (timestamp - timestamp[0]) / 210e6
+            current_wafer.add_ringdowns(active_chip, ringdown_collection)
 
-                    frequency = file[basepath + f"/{demod}/sample.frequency/value"][:].mean()
-                    x_quad = file[basepath + f"/{demod}/sample.x/value"][:]
-                    y_quad = file[basepath + f"/{demod}/sample.y/value"][:]
-
-                    ringdown_li_data.create_demod(demod, time_axis=timestamp,
-                                                  x_quad=x_quad, y_quad=y_quad,
-                                                  frequency=frequency)
-
-            ringdown_collection.add_ringdown_sequence(ringdown_li_data)
-
-        mode_dictionary[self.active_mode] = ringdown_collection
-
-        self.update_spinbox()
-        self.signal_data_uploaded.emit(self.active_chip)
-
+            self.update_spinbox()
+            self.signal_data_uploaded.emit(active_chip)
 
     def update_spinbox(self):
         """
         Called when loading new data, when clicking the mode selector, and when selecting a new chip.
         """
-        if (self.active_chip in self.loaded_data.keys()
-            and self.active_mode in self.loaded_data[self.active_chip].keys()):
-            ringdown_container = self.loaded_data[self.active_chip][self.active_mode]
+        if self.chipandmode_areLoaded(self.active_chip, self.active_mode):
+            ringdown_container = self.wafer_list[self.active_mode].get_ringdowns(self.active_chip)
             self.ringdownSpinBox.setMaximum(ringdown_container.get_ringdown_num())
             if self.ringdownSpinBox.value()==1:
                 self.ringdownSpinBox.valueChanged.emit(1)
             else:
                 self.ringdownSpinBox.setValue(1)
 
-    def update_plotting_demod_combobox(self, selected_ringdown):
+    def update_plotting_demod_comboboxes(self, selected_ringdown):
         """
         Called when loading new data, when clicking the mode selector, when selecting a new chip, and when changin the ringdown.
         """
-        if (self.active_chip in self.loaded_data.keys()
-            and self.active_mode in self.loaded_data[ self.active_chip].keys()):
-            ringdown_container = self.loaded_data[self.active_chip][self.active_mode]
-            self.demodComboBox.blockSignals(True)
-            self.demodComboBox.clear()
-            availdemodlist = ringdown_container.get_ringdown_demods(selected_ringdown-1) #-1 because of python indexing
-            for demod in availdemodlist:
-                self.demodComboBox.addItem(str(demod+1))
-            idx = self.demodComboBox.findText(str(availdemodlist[0] + 1))
-            self.demodComboBox.setCurrentIndex(idx)
-            self.demodComboBox.blockSignals(False)
-            self.demodComboBox.currentIndexChanged.emit(idx)
+        for combobox in [self.demodComboBox, self.referenceDemodComboBox, self.fitDemodComboBox]:
+            previous_text = combobox.currentText()
+            if self.chipandmode_areLoaded(self.active_chip, self.active_mode):
+                ringdown_container = self.wafer_list[self.active_mode].get_ringdowns(self.active_chip)
+                combobox.blockSignals(True)
+                combobox.clear()
+                availdemodlist = ringdown_container.get_ringdown_demods(selected_ringdown-1) #-1 because of python indexing
+                for demod in availdemodlist:
+                    combobox.addItem(str(demod+1))
+
+                idx = combobox.findText(previous_text)
+                if idx == -1: #meaning that the search has failed:
+                    #Return the first element of the avaiable demods
+                    idx = combobox.findText(str(availdemodlist[0] + 1))
+                combobox.setCurrentIndex(idx)
+                combobox.blockSignals(False)
+                combobox.currentIndexChanged.emit(idx)
 
     def refresh_plot(self):
-        if (self.active_chip in self.loaded_data.keys() and
-                self.active_mode in self.loaded_data[ self.active_chip].keys()):
-
-            ringdown_container = self.loaded_data[self.active_chip][self.active_mode]
-
+        if self.chipandmode_areLoaded(self.active_chip, self.active_mode):
+            ringdown_container = self.wafer_list[self.active_mode].get_ringdowns(self.active_chip)
             curr_rdown = self.ringdownSpinBox.value() - 1 #Always translate user-friendly data to python indices
+
             curr_demod = int(self.demodComboBox.currentText()) - 1
             rdown_data = ringdown_container.ringdown(curr_rdown).demod(curr_demod)
 
-            requested_quad = self.quadratureRadioButtons.get_active_name()
+            requested_quad = self.quadratureRadioButtons.checkedId()
+
             timestamp = rdown_data.time_axis
-            if requested_quad == 'R':
+            if requested_quad == 2:
                 plot_quad = rdown_data.r_quad
                 self.dataPlotWidget.setLabel('left', 'Amplitude (V)')
-            elif requested_quad == 'x':
+            elif requested_quad == 0:
                 plot_quad = rdown_data.x_quad
                 self.dataPlotWidget.setLabel('left', 'Amplitude (V)')
-            elif requested_quad == 'y':
+            elif requested_quad == 1:
                 plot_quad = rdown_data.y_quad
                 self.dataPlotWidget.setLabel('left', 'Amplitude (V)')
-            elif requested_quad == 'phase':
+            elif requested_quad == 3:
                 plot_quad = rdown_data.phase_quad
                 self.dataPlotWidget.setLabel('left', 'Phase (rad)')
             self.dataPlotWidget.setLabel('bottom', 'Time (s)')
+
+            self.dataPlotWidget.disableAutoRange()
             self.data_plot.setData(timestamp, plot_quad)
+            if (requested_quad == 2) and rdown_data.isFitted():
+                fit_data = rdown_data.get_fitted_data()
+                self.fit_plot.setData(fit_data[0], fit_data[1])
+            else:
+                self.fit_plot.clear()
+            self.dataPlotWidget.autoRange()
 
     def display_file_size(self, filesize):
         if self._current_savefile is not None:
             self.fileSizeDisplay.setValue(filesize)
 
     def set_loaded_cell_style(self, chipID):
-        self.interactive_wafer.chip_collection[chipID].set_active_stylesheet("data loaded")
+        self.interactive_wafer.chip_collection[chipID].setDataUploaded(True)
 
     def set_not_loaded_cell_style(self, chipID):
-        self.interactive_wafer.chip_collection[chipID].set_active_stylesheet("standard")
+        self.interactive_wafer.chip_collection[chipID].setDataUploaded(False)
 
     def clear_memory(self):
-        self.loaded_data = dict()
+        active_wafer =  self.wafer_list[self.active_mode]
+        active_wafer.clear_data()
+        self.update_wafer_image()
+        self.fit_plot.clear()
+        self.data_plot.clear()
+
+    def clear_memory_selected(self):
+        active_chip, active_mode = self.active_chip, self.active_mode
+        #if self.chipandmode_areLoaded(active_chip, active_mode):
+        #    self.loaded_data[active_chip].pop(active_mode)
+        #    self.interactive_wafer.chip_collection[active_chip].setDataUploaded(False)
+        self.wafer_list[active_mode].clear_chip(active_chip)
+        self.update_wafer_image()
+        self.fit_plot.clear()
+        self.data_plot.clear()
+
+
+    def chipandmode_areLoaded(self, chip, mode):
+        isloaded = chip in self.wafer_list[mode].get_loaded_chips()
+        return isloaded
+
+    def chunkify_all_chip_ringdowns(self):
+        if self.active_chip == '':
+            print("No chip selected.")
+            return
+
+        if self.chipandmode_areLoaded(self.active_chip, self.active_mode):
+            ringdowndata = self.wafer_list[self.active_mode].get_ringdowns(self.active_chip)
+            selected_ringdown_idx = 0
+            reference_demod = int(self.referenceDemodComboBox.currentText()) - 1
+            while not ringdowndata.ringdown(0).isChunkified():
+                ringdowndata.chunkify_ringdown(selected_ringdown_idx, reference_demod)
+
+            self.update_spinbox()
+            self.refresh_plot()
+
+    def chunkify_data(self):
+        action_type = self.actionRadioButtons.checkedId()
+        """
+        Value = 0 -> selected ringdown
+        Value = 1 -> all ringdowns of chip
+        Value = 2 -> all ringdowns of wafer for a mode
+        """
+        reference_demod = int(self.referenceDemodComboBox.currentText()) - 1
+        current_wafer = self.wafer_list[self.active_mode]
+
+        if action_type == 0 or action_type == 1:
+            if self.active_chip == '':
+                print("No chip selected.")
+                return
+            ringdowndata = current_wafer.get_ringdowns(self.active_chip)
+
+            if action_type == 0:
+                ringdown_idx = self.ringdownSpinBox.value() - 1
+                ringdowndata.chunkify_ringdown(ringdown_idx, reference_demod)
+            elif action_type == 1:
+                ringdown_idx = 0
+                while not ringdowndata.ringdown(0).isChunkified():
+                    ringdowndata.chunkify_ringdown(ringdown_idx, reference_demod)
+        elif action_type == 2:
+            for loaded_chip in current_wafer.get_loaded_chips():
+                ringdowndata = current_wafer.get_ringdowns(loaded_chip)
+                ringdown_idx = 0
+                while not ringdowndata.ringdown(0).isChunkified():
+                    ringdowndata.chunkify_ringdown(ringdown_idx, reference_demod)
+
+        self.update_spinbox()
+        self.refresh_plot()
+
+    def fit_data(self):
+        action_type = self.actionRadioButtons.checkedId()
+        """
+        Value = 0 -> selected ringdown
+        Value = 1 -> all ringdowns of chip
+        Value = 2 -> all ringdowns of wafer for a mode
+        """
+        signal_demod = int(self.fitDemodComboBox.currentText()) - 1
+        current_wafer = self.wafer_list[self.active_mode]
+        if action_type == 0 or action_type == 1:
+            if self.active_chip == '':
+                print("No chip selected.")
+                return
+            ringdowndata = current_wafer.get_ringdowns(self.active_chip)
+
+            if action_type == 0:
+                current_xrange, _ = self.dataPlotWidget.viewRange()
+                ringdown_idx = self.ringdownSpinBox.value() - 1
+                fit_successful, fail_string = ringdowndata.fit_ringdown(ringdown_idx,signal_demod,
+                                                                        timerange = current_xrange)
+            elif action_type == 1:
+                for ringdown_idx in range(ringdowndata.get_ringdown_num()):
+                    single_success, fail_string = ringdowndata.fit_ringdown(ringdown_idx, signal_demod)
+            resfreq, Q = ringdowndata.calculate_Qs(signal_demod)
+            self.add_freq_and_Q(self.active_chip, resfreq, Q)
+        elif action_type == 2:
+            for loaded_chip in current_wafer.get_loaded_chips():
+                ringdowndata = current_wafer.get_ringdowns(loaded_chip)
+                for ringdown_idx in range(ringdowndata.get_ringdown_num()):
+                    single_success, fail_string = ringdowndata.fit_ringdown(ringdown_idx, signal_demod)
+                    if not single_success:
+                        print(fail_string, f"Occured at chip {loaded_chip}")
+                resfreq, Q = ringdowndata.calculate_Qs(signal_demod)
+                self.add_freq_and_Q(loaded_chip, resfreq, Q)
+
+
+        self.refresh_plot()
+
+    def chunkify_wafer(self):
+        for loaded_chip in self.wafer_list[self.active_mode].get_loaded_chips():
+            ringdown_data = self.wafer_list[self.active_mode].get_ringdowns(loaded_chip)
+            selected_ringdown_idx = 0
+            reference_demod = int(self.referenceDemodComboBox.currentText()) - 1
+            while not ringdown_data.ringdown(0).isChunkified():
+                ringdown_data.chunkify_ringdown(selected_ringdown_idx, reference_demod)
+
+        self.update_spinbox()
+        self.refresh_plot()
+
+    def add_freq_and_Q(self, chipID, frequency, Q):
+        chip = self.interactive_wafer.chip_collection[chipID]
+        chip.setText("f<sub>0</sub> = {:.3f} MHz".format(frequency/1e6))
+        chip.append("Q = {:.3f} x 10<sup>6</sup>".format(Q/1e6))
+
+    def clear_chip_text(self, chipID):
+        chip = self.interactive_wafer.chip_collection[chipID]
+        chip.setText("")
+
+    def set_chip_info(self, chipID):
+        wafer = self.wafer_list[self.active_mode]
+        if chipID in wafer.get_loaded_chips():
+            chip = wafer.get_ringdowns(chipID)
+            if chip.hasQs():
+                freq, Q = chip.getQs()
+                self.add_freq_and_Q(chipID, freq, Q)
+            else:
+                self.clear_chip_text(chipID)
+        else:
+            self.clear_chip_text(chipID)
+
+    def set_linlogscale(self):
+        if self.linlogRadioButtons.checkedId() == 0:
+            self.dataPlotWidget.setLogMode(y=False)
+        else:
+            self.dataPlotWidget.setLogMode(y=True)
 
     def abort_window(self):
         sys.exit()
 
-class InteractiveWafer(QWidget):
+    def export_data(self):
+        wafer = self.wafer_list[self.active_mode]
 
-    signal_id_changed = pyqtSignal(str)
+        data_list = []
+        for chipID in wafer.get_available_chips():
+            if chipID in wafer.get_loaded_chips():
+                chip = wafer.get_ringdowns(chipID)
+                if chip.hasQs():
+                    freq, Q = chip.getQs()
+                    data_list.append([chipID, freq, Q, None])
 
-    def __init__(self, rows=1, cols=1, fixed_size=100, active_chips = [], *args, **kwargs):
-        super(InteractiveWafer, self).__init__()
-        self.rows = rows
-        self.cols = cols
-        self.fixed_size = fixed_size #The size of the square side
-        self.active_chips = active_chips #Determines which chip is interacting. If [], the all are interactive.
-        self.chip_collection = dict()
-        self.do_grid()
-        self.current_active = None
-        self.setAutoFillBackground(False)
+        result_dir = self.wafer_directory / self.wafer_name / 'results' / f'mode{self.active_mode+1}'
+        result_dir.mkdir(parents=True, exist_ok=True)
 
-    def do_grid(self):
-        layout = QGridLayout()
-        self.setLayout(layout)
+        create_wafer(result_dir / 'wafer_image.png', cells = (self.rows, self.cols), chip_data=data_list,
+                     pad_letter=0.01)
 
-        for ii in range(1, self.rows + 1):
-            for jj in range(1, self.cols + 1):
-                if jj == 1:
-                    widgy = QLabel(str(ii))
-                    widgy.setStyleSheet("font-weight: bold;")
-                    layout.addWidget(widgy, ii + 1, jj, Qt.AlignVCenter)
-
-                    # This widget is used for centering purposes
-                    widgy = QLabel(str(ii))
-                    widgy.setStyleSheet("font-weight: bold; color:rgba(0,0,0,0)")
-                    layout.addWidget(widgy, ii + 1, jj + self.cols + 1, Qt.AlignVCenter)
-                if ii == 1:
-                    widgy = QLabel(chr(ord('A') + jj - 1))
-                    widgy.setStyleSheet("font-weight: bold;")
-                    layout.addWidget(widgy, ii, jj + 1, Qt.AlignHCenter)
-
-                    # This widget is used for centering purposes
-                    widgy = QLabel(chr(ord('A') + jj - 1))
-                    widgy.setStyleSheet("font-weight: bold; color:rgba(0,0,0,0)")
-                    layout.addWidget(widgy, ii + self.rows + 1, jj + 1, Qt.AlignHCenter)
-
-        for ii in range(2, self.rows + 2):
-            for jj in range(2, self.cols + 2):
-                if (ii != 2 and ii != self.rows + 1) or (jj != 2 and jj != self.cols + 1):
-                    temp_id = chr(ord('A') + jj - 2) + str(ii-1)
-                    widgy = InteractingLineEdit(temp_id, self.fixed_size)
-                    self.chip_collection[temp_id] = widgy
-                    widgy.signal_widget_clicked.connect(self.update_square)
-                    #Here determine if after loading, the chip will be interactive or not
-                    if len(self.active_chips) > 0 and temp_id not in self.active_chips:
-                        widgy.interaction_enabled(False)
-                        widgy.set_active_stylesheet("data missing")
-                    layout.addWidget(widgy, ii, jj)
-
-        #Add four spacers on the four square corners to center the chips
-        hor_spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        ver_spacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
-
-        layout.addItem(hor_spacer, 1, 0)
-        layout.addItem(hor_spacer, 1, self.cols + 3)
-        layout.addItem(ver_spacer, 0, 1)
-        layout.addItem(ver_spacer, self.rows + 3, 1)
-        layout.setHorizontalSpacing(3)
-        layout.setVerticalSpacing(3)
-
-    def update_square(self, id):
-        if not self.current_active:
-            self.current_active = id
-        elif self.current_active != id:
-            self.chip_collection[self.current_active].unclick()
-            self.current_active = id
-        elif self.current_active == id:
-            self.current_active = ''
-        self.signal_id_changed.emit(self.current_active)
+        sortbyfirstfunc = itemgetter(0)
+        sorted_list = sorted(data_list, key = sortbyfirstfunc)
+        with open(result_dir / 'result_data.txt', 'w') as file:
+            header = "%chipID\tFrequency (MHz)\tQ\tAdditional info\n"
+            file.write(header)
+            for line in sorted_list:
+                line[1] /= 1e6
+                line[2] /= 1e6
+                file.write("{}\t{:.3f}\t{:.1f}\t{}\n".format(*line))
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
