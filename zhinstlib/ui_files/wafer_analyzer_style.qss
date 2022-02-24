@@ -1,5 +1,30 @@
 QMainWindow {
     background-color: rgb(56,56,56);
+    color: white;
+    icon: url(../artwork/wafer.png);
+}
+QMainWindow::separator:hover {
+    background: red;
+}
+
+QMenuBar {
+    background-color: rgb(120,120,120);
+    color: white;
+}
+
+QMenuBar::item:selected {
+    background-color: rgb(170,170,170);
+    color: white;
+}
+
+QMenu {
+    background-color: rgb(120,120,120);
+    color: white;
+}
+
+QMenu::item:selected {
+    background-color: rgb(170,170,170);
+    color: white;
 }
 
 QDialog {
@@ -8,22 +33,22 @@ QDialog {
 
 QPushButton {
     color: white;
+    font-size: 11px;
     background-color: rgb(100,100,100);
-    border-style: outset;
+    border-style: solid;
     border-width: 1px;
     border-radius: 10px;
     border-color: rgb(190,190,190);
-    padding: 6px;
+    padding: 3px;
+    min-height: 20px;
+    min-width: 50px;
 }
 
 QPushButton:hover {
     background-color: rgb(120,120,120);
     border-width: 2px;
-    border-style: outset;
-    border-top-color: rgb(114,157,254);
-    border-left-color: green;
-    border-right-color: rgb(114,157,254);
-    border-bottom-color: rgb(114,157,254);
+    border-style: solid;
+    border-color:  rgb(0,149,187);
 }
 
 QPushButton:pressed {
@@ -36,76 +61,230 @@ QPushButton:checked {
 
 ButtonText {
     color: white;
+    font-size: 11px;
     background-color: rgb(100,100,100);
-    border-style: outset;
-    border-width: 1px;
+    border-style: solid;
+    border-width: 2px;
     border-radius: 10px;
     border-color: rgb(190,190,190);
-    padding: 5px;
+    padding: 3px;
+    height: 20px;
 }
 
 ButtonText:hover {
     background-color: rgb(120,120,120);
-    border-color: rgb(114,157,254);
-    border-style: outset;
-    border-width: 3px;
+    border-width: 2px;
+    border-style: solid;
+    border-color:  rgb(0,149,187);
 }
 
 ButtonText:checked {
     background-color: rgb(83,121,180);
+    border-width: 2px;
+    border-style: solid;
+    border-color: rgb(83,121,180);
 }
+
+ButtonText:disabled {
+    color: rgb(120,120,120);
+    background-color: rgb(90,90,90);
+    border-width: 2px;
+    border-style: solid;
+    border-color: rgb(120,120,120);
+}
+
 
 QLabel {
     color: white;
-    font-size: 14px;
 }
 
 QComboBox {
     color: white;
     background-color: rgb(100,100,100);
     selection-background-color: rgba(0,0,0,0);
+    border-color: rgb(190,190,190);
+    border-style: solid;
     border-width: 1px;
     border-radius: 5px;
-    border-color: white;
+    padding: 3px;
+}
+
+QComboBox:hover {
+    background-color: rgb(120,120,120);
 }
 
 QComboBox QAbstractItemView {
     color: white;
-    border: 2px solid darkgray;
+    border-color: rgb(190,190,190);
     background-color: rgb(100,100,100);
     selection-background-color: rgb(120,120,120);
     border-width: 1px;
-    border-radius: 5px;
     border-color: white;
 }
 
 QComboBox::drop-down {
-    border-color: white;
-    border-bottom-right-radius: 5px;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 15px;
+
+    border-left-width: 1px;
+    border-left-color: darkgray;
+    border-left-style: solid;
+    border-top-right-radius: 5px;
 }
 
+
 QComboBox::down-arrow {
-    image: url('downarrow.png')
+    image: url(../artwork/downarrow.png);
+    width: 5px;
+    height: 5px;
 }
 
 QCheckBox {
     background-color: rgb(56,56,56);
     color: white;
+    font-size: 12px;
 }
 
-QCheckBox::indicator::unchecked {
-    background-color: rgb(100,100,100);
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border-color: rgb(190,190,190);
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 5px
 }
 
 QCheckBox::indicator::hover {
     background-color: rgb(120,120,120);
-    border-color: rgb(114,157,254);
-    border-style: outset;
-    border-width: 3px;
+    border-width: 2px;
+    border-style: solid;
+    border-color:  rgb(0,149,187);
 }
 
 QCheckBox::indicator::checked {
-    background-color: rgb(83,121,180);
+    background-image: url(../artwork/checkbox_marker_checked.png);
+    background-repeat: no-repeat;
+    background-position: center;
 }
+
+QRadioButton {
+    background-color: rgb(56,56,56);
+    color: white;
+    font-size: 12px;
+}
+
+QRadioButton::indicator {
+    width: 14px;
+    height: 14px;
+    border-color: rgb(190,190,190);
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 9px;
+    background-color:rgb(56,56,56);
+}
+
+QRadioButton::indicator::hover {
+    background-color: rgb(120,120,120);
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 9px;
+    border-color:  rgb(0,149,187);
+}
+
+QRadioButton::indicator::checked {
+    background-image: url(../artwork/radio_btn_checked.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+QRadioButton::indicator::checked::hover {
+    background-image: url(../artwork/radio_btn_checked_hover.png);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: rgb(120,120,120);
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 9px;
+    border-color:  rgb(0,149,187);
+}
+
+QLineEdit {
+    color: white;
+    font-size: 13;
+    background-color: rgb(90,90,90);
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 3px;
+    border-color:  rgb(190,190,190);
+    padding: 2px;
+}
+
+QSpinBox {
+    color: white;
+    font-size: 13;
+    background-color: rgb(90,90,90);
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 3px;
+    border-color:  rgb(190,190,190);
+    padding: 2px;
+    height: 16px;
+    text-align: center;
+    selection-background-color: rgb(150,150,150);
+}
+
+QSpinBox::down-button  {
+  subcontrol-origin: left;
+  subcontrol-position: center left;
+  height: 16px;
+  width: 10px;
+  image: url(../artwork/spinbox_larrow.png);
+  border-right-width: 1;
+  border-right-style: solid;
+  border-right-color: rgb(190,190,190);
+  padding: 2px;
+}
+
+QSpinBox::up-button  {
+  subcontrol-origin: margin;
+  subcontrol-position: center right;
+  height: 16px;
+  width: 10px;
+  image: url(../artwork/spinbox_rarrow.png);
+  border-left-width: 1;
+  border-left-style: solid;
+  border-left-color: rgb(190,190,190);
+  padding: 2px;
+}
+
+QSpinBox::up-button::hover  {
+  background-color: rgb(120,120,120);
+}
+
+QSpinBox::down-button::hover  {
+  background-color: rgb(120,120,120);
+}
+
+QDoubleSpinBox#fileSizeDisplay  {
+  color: white;
+  background-color:rgb(56,56,56);;
+  border-width: 0px;
+  border-style: solid;
+  border-color: none;
+}
+
+QDoubleSpinBox#fileSizeDisplay:hover  {
+  color: white;
+  background-color:rgb(56,56,56);
+  border-width: 0px;
+  border-style: solid;
+  border-color: none;
+}
+
+PlotWidget SelectableAreaPlotWidget {
+    background-color: rgb(56,56,56);
+}
+
 
 
