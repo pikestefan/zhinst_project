@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1441</width>
-    <height>679</height>
+    <height>706</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -989,7 +989,7 @@
      <x>0</x>
      <y>0</y>
      <width>1441</width>
-     <height>21</height>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -1011,12 +1011,12 @@
   <customwidget>
    <class>ButtonText</class>
    <extends>QPushButton</extends>
-   <header location="global">custom_widgets.text_changing_button.h</header>
+   <header>zhinstlib.custom_widgets.text_changing_button.h</header>
   </customwidget>
   <customwidget>
    <class>SelectableAreaPlotWidget</class>
    <extends>QGraphicsView</extends>
-   <header>custom_widgets.graph_widget_selbox.h</header>
+   <header>zhinstlib.custom_widgets.graph_widget_selbox.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

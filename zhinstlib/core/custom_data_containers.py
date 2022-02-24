@@ -1,7 +1,7 @@
 import numpy as np
 import h5py
 from zhinstlib.data_processing.data_manip import chunkify_timetrace
-from data_processing.fitting_funcs import lin_rdown
+from zhinstlib.data_processing.fitting_funcs import lin_rdown
 from scipy.optimize import curve_fit
 
 class WaferFitContainer(object):

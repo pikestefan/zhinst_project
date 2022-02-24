@@ -675,12 +675,3 @@ class WaferAnalyzer(QMainWindow):
                 line[2] /= 1e6
                 file.write("{}\t{:.3f}\t{:.1f}\t{}\n".format(*line))
 
-if __name__ == '__main__':
-    filepath = Path(__file__).parents[1]
-    qss = filepath / "ui_files" / "wafer_analyzer_style.qss"
-    app = QApplication(sys.argv)
-    with open(qss, "r") as fh:
-        app.setStyleSheet(fh.read())
-    window = WaferAnalyzer()
-    sys.exit(app.exec_())
-    # sys.exit()
