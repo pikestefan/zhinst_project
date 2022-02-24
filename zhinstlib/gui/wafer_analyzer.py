@@ -1,6 +1,7 @@
 import numpy as np
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QTimer, Qt
 from PyQt5.QtWidgets import QMainWindow, QCheckBox, QApplication, QButtonGroup
+from PyQt5.QtGui import QIcon
 from PyQt5 import uic
 import os
 import sys
@@ -61,6 +62,9 @@ class WaferAnalyzer(QMainWindow):
         self.actionExportMode.triggered.connect(self.export_data)
         ######
 
+        window_icon = QIcon( str(self.this_dir.parents[1] / 'artwork' / 'wanalyzer_icon.png') )
+        self.setWindowIcon(window_icon)
+
         self.initUI()
 
     def initUI(self):
@@ -87,8 +91,14 @@ class WaferAnalyzer(QMainWindow):
             self.actionRadioButtons.setId(btn, ii)
         self.selRdownBtn.setChecked(True)
 
+        self.dataPlotWidget.setBackground((56,56,56))
+        self.dataPlotWidget.getAxis('left').setPen('w')
+        self.dataPlotWidget.getAxis('left').setTextPen('w')
+        self.dataPlotWidget.getAxis('bottom').setPen('w')
+        self.dataPlotWidget.getAxis('bottom').setTextPen('w')
+
         self.data_plot = DownsamplerPlotDataItem(pen = None, symbol = 't', symbolPen = None,
-                                                 symbolBrush = 'w', symbolSize = 2, max_data=60000) #60000 items gives a time resolution of 10ms for 10 minutes
+                                                 symbolBrush = (228,253,255), symbolSize = 2, max_data=60000) #60000 items gives a time resolution of 10ms for 10 minutes
         self.fit_plot = pg.PlotDataItem(pen = pg.mkPen('r', width=2)) #Here I'm sure that since I output the fit function, it's not oversampled.
         self.dataPlotWidget.addItem(self.data_plot)
         self.dataPlotWidget.addItem(self.fit_plot)
