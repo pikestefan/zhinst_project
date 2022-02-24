@@ -138,8 +138,8 @@ class WaferAnalyzer(QMainWindow):
         self.backgroundWidget.setStyleSheet(style_command)
 
         container_width = self.backgroundWidget.width()
-        lateral_size = min(floor(0.7 * container_width / self.rows),
-                           floor(0.7 * container_width / self.cols))
+        lateral_size = min(floor(0.67 * container_width / self.rows),
+                           floor(0.67 * container_width / self.cols))
         return lateral_size
 
     def create_wafer_container_list(self, directory):
@@ -265,6 +265,7 @@ class WaferAnalyzer(QMainWindow):
             self.zi_device.execute_daqmodule(self._daqmodule_name)
             self._saving_timer.start(self._saving_timeout)
         else:
+            pass
             self.executionButton.setChecked(False)
 
     def acquire_data(self):
@@ -665,7 +666,11 @@ class WaferAnalyzer(QMainWindow):
                 file.write("{}\t{:.3f}\t{:.1f}\t{}\n".format(*line))
 
 if __name__ == '__main__':
+    filepath = Path(__file__).parents[1]
+    qss = filepath / "ui_files" / "wafer_analyzer_style.qss"
     app = QApplication(sys.argv)
+    with open(qss, "r") as fh:
+        app.setStyleSheet(fh.read())
     window = WaferAnalyzer()
     sys.exit(app.exec_())
     # sys.exit()

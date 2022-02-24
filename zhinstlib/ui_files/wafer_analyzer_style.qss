@@ -1,0 +1,111 @@
+QMainWindow {
+    background-color: rgb(56,56,56);
+}
+
+QDialog {
+    background-color: rgb(56,56,56);
+}
+
+QPushButton {
+    color: white;
+    background-color: rgb(100,100,100);
+    border-style: outset;
+    border-width: 1px;
+    border-radius: 10px;
+    border-color: rgb(190,190,190);
+    padding: 6px;
+}
+
+QPushButton:hover {
+    background-color: rgb(120,120,120);
+    border-width: 2px;
+    border-style: outset;
+    border-top-color: rgb(114,157,254);
+    border-left-color: green;
+    border-right-color: rgb(114,157,254);
+    border-bottom-color: rgb(114,157,254);
+}
+
+QPushButton:pressed {
+    background-color: rgb(120,120,120);
+}
+
+QPushButton:checked {
+    background-color: rgb(83,121,180);
+}
+
+ButtonText {
+    color: white;
+    background-color: rgb(100,100,100);
+    border-style: outset;
+    border-width: 1px;
+    border-radius: 10px;
+    border-color: rgb(190,190,190);
+    padding: 5px;
+}
+
+ButtonText:hover {
+    background-color: rgb(120,120,120);
+    border-color: rgb(114,157,254);
+    border-style: outset;
+    border-width: 3px;
+}
+
+ButtonText:checked {
+    background-color: rgb(83,121,180);
+}
+
+QLabel {
+    color: white;
+    font-size: 14px;
+}
+
+QComboBox {
+    color: white;
+    background-color: rgb(100,100,100);
+    selection-background-color: rgba(0,0,0,0);
+    border-width: 1px;
+    border-radius: 5px;
+    border-color: white;
+}
+
+QComboBox QAbstractItemView {
+    color: white;
+    border: 2px solid darkgray;
+    background-color: rgb(100,100,100);
+    selection-background-color: rgb(120,120,120);
+    border-width: 1px;
+    border-radius: 5px;
+    border-color: white;
+}
+
+QComboBox::drop-down {
+    border-color: white;
+    border-bottom-right-radius: 5px;
+}
+
+QComboBox::down-arrow {
+    image: url('downarrow.png')
+}
+
+QCheckBox {
+    background-color: rgb(56,56,56);
+    color: white;
+}
+
+QCheckBox::indicator::unchecked {
+    background-color: rgb(100,100,100);
+}
+
+QCheckBox::indicator::hover {
+    background-color: rgb(120,120,120);
+    border-color: rgb(114,157,254);
+    border-style: outset;
+    border-width: 3px;
+}
+
+QCheckBox::indicator::checked {
+    background-color: rgb(83,121,180);
+}
+
+

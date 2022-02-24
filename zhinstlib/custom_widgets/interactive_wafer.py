@@ -25,7 +25,7 @@ class InteractiveWafer(QWidget):
             for jj in range(1, self.cols + 1):
                 if jj == 1:
                     widgy = QLabel(str(ii))
-                    widgy.setStyleSheet("font-weight: bold;")
+                    widgy.setStyleSheet("font-weight: bold; color:black; fontsize:10px")
                     layout.addWidget(widgy, ii + 1, jj, Qt.AlignVCenter)
 
                     # This widget is used for centering purposes
@@ -34,7 +34,7 @@ class InteractiveWafer(QWidget):
                     layout.addWidget(widgy, ii + 1, jj + self.cols + 1, Qt.AlignVCenter)
                 if ii == 1:
                     widgy = QLabel(chr(ord('A') + jj - 1))
-                    widgy.setStyleSheet("font-weight: bold;")
+                    widgy.setStyleSheet("font-weight: bold; color:black; fontsize:10px")
                     layout.addWidget(widgy, ii, jj + 1, Qt.AlignHCenter)
 
                     # This widget is used for centering purposes
