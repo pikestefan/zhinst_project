@@ -28,7 +28,7 @@ class WaferAnalyzer(QMainWindow):
 
     def __init__(self):
         super(WaferAnalyzer, self).__init__()
-        self.this_dir = Path(__file__)
+        self.this_dir = Path(__file__).resolve()
         ui_file = self.this_dir.parents[1] / 'ui_files' / 'wafer_analyzer.ui'
         uic.loadUi(ui_file, self)
 
@@ -62,7 +62,7 @@ class WaferAnalyzer(QMainWindow):
         self.actionExportMode.triggered.connect(self.export_data)
         ######
 
-        window_icon = QIcon( str(self.this_dir.parents[1] / 'artwork' / 'wanalyzer_icon.png') )
+        window_icon = QIcon( str(self.this_dir.parents[1] / 'artwork' / 'logos' / 'wanalyzer_icon.png') )
         self.setWindowIcon(window_icon)
 
         self.initUI()
@@ -142,7 +142,7 @@ class WaferAnalyzer(QMainWindow):
         self.show()
 
     def set_wafer_widg_background(self):
-        image_path = self.this_dir.parents[1] / 'artwork' / 'wafer.png'
+        image_path = self.this_dir.parents[1] / 'artwork' / 'widget_backgrounds' / 'wafer.png'
         image_path = str(image_path).replace('\\', '/')
         style_command = f"QWidget#{self.backgroundWidget.objectName()} " + "{border-image:url(" + image_path + ")}"
         self.backgroundWidget.setStyleSheet(style_command)

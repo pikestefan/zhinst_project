@@ -9,8 +9,8 @@ class ChooseModeDialog(QDialog):
     signal_mode_closed = pyqtSignal()
 
     def __init__(self):
-        this_dir = Path(os.path.dirname(__file__))
-        ui_file = this_dir.parents[0] / 'ui_files' / 'wafer_folder_selection.ui'
+        this_dir = Path(__file__).resolve()
+        ui_file = this_dir.parents[1] / 'ui_files' / 'wafer_folder_selection.ui'
         super(ChooseModeDialog, self).__init__()
         uic.loadUi(ui_file, self)
 
@@ -37,8 +37,8 @@ class WaferDialogGui(QDialog):
     dialog_accepted = pyqtSignal(int, int, int, str, str)
 
     def __init__(self):
-        this_dir = Path(os.path.dirname(__file__))
-        ui_file = this_dir.parents[0] / 'ui_files' / 'wafer_dialog.ui'
+        this_dir = Path(__file__).resolve()
+        ui_file = this_dir.parents[1] / 'ui_files' / 'wafer_dialog.ui'
         super(WaferDialogGui, self).__init__()
         uic.loadUi(str(ui_file), self)
 
