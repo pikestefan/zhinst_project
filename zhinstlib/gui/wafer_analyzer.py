@@ -51,7 +51,6 @@ class WaferAnalyzer(QMainWindow):
         self._saving_timeout = 2000
         self._daqmodule_name = None
         self._sig_paths = None
-        self._temp_data = np.array([])
         self._current_savefile = Path()
 
         self._saving_timer = QTimer()
@@ -270,6 +269,7 @@ class WaferAnalyzer(QMainWindow):
                     h5file.create_dataset(name=path + '/timestamp', **h5kwargs)
                     h5file.create_dataset(name=path + '/value', **h5kwargs)
 
+            self.disableNonAcqWidgets(True)
             ####Synchronize and start acquisition
             self.zi_device.sync()
             self.zi_device.execute_daqmodule(self._daqmodule_name)
@@ -322,8 +322,27 @@ class WaferAnalyzer(QMainWindow):
                 self._saving_timer.stop()
             self._daqmodule_name = None
             self._sig_paths = None
-            self._temp_data = np.array([])
             self._current_savefile = Path()
+            self.display_file_size(0.)
+            self.disableNonAcqWidgets(False)
+
+    def disableNonAcqWidgets(self, value):
+        enabled = not value
+        for chbox in self.demod_collection:
+            chbox.setEnabled(enabled)
+        self.loadSelectedButton.setEnabled(enabled)
+        self.loadAllButton.setEnabled(enabled)
+        self.modeSelector.setEnabled(enabled)
+        self.ringdownSpinBox.setEnabled(enabled)
+        self.demodComboBox.setEnabled(enabled)
+        self.clearSelectedMemoryBtn.setEnabled(enabled)
+        self.clearAllMemoryBtn.setEnabled(enabled)
+        self.chunkifyBtn.setEnabled(enabled)
+        self.fitBtn.setEnabled(enabled)
+        self.dataPlotWidget.setEnabled(enabled)
+        for btngroup in [self.quadratureRadioButtons, self.linlogRadioButtons]:
+            for button in btngroup.buttons():
+                button.setEnabled(enabled)
 
     def set_wafer_mode_and_dir(self, directory, mode):
         if not isinstance(directory, Path):
@@ -474,14 +493,14 @@ class WaferAnalyzer(QMainWindow):
 
             timestamp = rdown_data.time_axis
             if requested_quad == 2:
-                plot_quad = rdown_data.r_quad
-                self.dataPlotWidget.setLabel('left', 'Amplitude (V)')
+                plot_quad = rdown_data.r_quad * 1e3 #Convert the quadrature in mV
+                self.dataPlotWidget.setLabel('left', 'Amplitude (mV)')
             elif requested_quad == 0:
-                plot_quad = rdown_data.x_quad
-                self.dataPlotWidget.setLabel('left', 'Amplitude (V)')
+                plot_quad = rdown_data.x_quad * 1e3
+                self.dataPlotWidget.setLabel('left', 'Amplitude (mV)')
             elif requested_quad == 1:
-                plot_quad = rdown_data.y_quad
-                self.dataPlotWidget.setLabel('left', 'Amplitude (V)')
+                plot_quad = rdown_data.y_quad * 1e3
+                self.dataPlotWidget.setLabel('left', 'Amplitude (mV)')
             elif requested_quad == 3:
                 plot_quad = rdown_data.phase_quad
                 self.dataPlotWidget.setLabel('left', 'Phase (rad)')
