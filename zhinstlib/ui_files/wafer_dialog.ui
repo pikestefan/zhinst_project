@@ -168,7 +168,7 @@
      <item row="4" column="2">
       <widget class="QLineEdit" name="waferName">
        <property name="text">
-        <string>jhjhj</string>
+        <string>wafer</string>
        </property>
       </widget>
      </item>

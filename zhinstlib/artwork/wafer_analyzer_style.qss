@@ -1,7 +1,6 @@
 QMainWindow {
     background-color: rgb(56,56,56);
     color: white;
-    icon: url(../artwork/wafer.png);
 }
 QMainWindow::separator:hover {
     background: red;
@@ -135,7 +134,7 @@ QComboBox::drop-down {
 
 
 QComboBox::down-arrow {
-    image: url(../artwork/downarrow.png);
+    image: url(../artwork/icons/downarrow.png);
     width: 5px;
     height: 5px;
 }
@@ -163,7 +162,7 @@ QCheckBox::indicator::hover {
 }
 
 QCheckBox::indicator::checked {
-    background-image: url(../artwork/checkbox_marker_checked.png);
+    background-image: url(../artwork/icons/checkbox_marker_checked.png);
     background-repeat: no-repeat;
     background-position: center;
 }
@@ -193,13 +192,13 @@ QRadioButton::indicator::hover {
 }
 
 QRadioButton::indicator::checked {
-    background-image: url(../artwork/radio_btn_checked.png);
+    background-image: url(../artwork/icons/radio_btn_checked.png);
     background-repeat: no-repeat;
     background-position: center;
 }
 
 QRadioButton::indicator::checked::hover {
-    background-image: url(../artwork/radio_btn_checked_hover.png);
+    background-image: url(../artwork/icons/radio_btn_checked_hover.png);
     background-repeat: no-repeat;
     background-position: center;
     background-color: rgb(120,120,120);
@@ -239,7 +238,7 @@ QSpinBox::down-button  {
   subcontrol-position: center left;
   height: 16px;
   width: 10px;
-  image: url(../artwork/spinbox_larrow.png);
+  image: url(../artwork/icons/spinbox_larrow.png);
   border-right-width: 1;
   border-right-style: solid;
   border-right-color: rgb(190,190,190);
@@ -251,7 +250,7 @@ QSpinBox::up-button  {
   subcontrol-position: center right;
   height: 16px;
   width: 10px;
-  image: url(../artwork/spinbox_rarrow.png);
+  image: url(../artwork/icons/spinbox_rarrow.png);
   border-left-width: 1;
   border-left-style: solid;
   border-left-color: rgb(190,190,190);
