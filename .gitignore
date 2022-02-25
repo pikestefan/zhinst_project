@@ -3,3 +3,4 @@
 /.idea
 *.pyc
 /zhinstlib.egg-info/*
+*.conda_path
