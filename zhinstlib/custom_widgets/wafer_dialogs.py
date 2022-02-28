@@ -5,9 +5,12 @@ from pathlib import Path
 import os
 
 class ChooseModeDialog(QDialog):
-    signal_wafer_mode = pyqtSignal(str, bool)
+    signal_wafer_mode = pyqtSignal(str, int)
     signal_mode_closed = pyqtSignal()
 
+    """
+    Three values: 0-> Create new directory, 1->Append to existing, 2->Load data
+    """
     def __init__(self):
         this_dir = Path(__file__).resolve()
         ui_file = this_dir.parents[1] / 'ui_files' / 'wafer_folder_selection.ui'
@@ -25,9 +28,11 @@ class ChooseModeDialog(QDialog):
                                                        options=options)
         sender_name = self.sender().objectName()
         if sender_name == 'createButton':
-            create_val = True
+            create_val = 0
         elif sender_name == 'loadButton':
-            create_val = False
+            create_val = 2
+        else:
+            create_val = 1
 
         if foldername != '':
             self.signal_wafer_mode.emit(foldername, create_val)

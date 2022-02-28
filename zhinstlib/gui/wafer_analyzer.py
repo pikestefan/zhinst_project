@@ -38,7 +38,7 @@ class WaferAnalyzer(QMainWindow):
         self.wafer_name = ''
         self.wafer_directory = Path()
         self.demod_collection = [] #list to contain the demod checkbuttons
-        self._creation_mode = False #Variable to communicate if the wafer is in wafer creation mode, or wafer loading mode
+        self._creation_mode = 2 #Variable to communicate if the wafer is in wafer creation mode, or wafer loading mode
                                   #Determines if the Zurich is connected or not, plus some extra behaviours.
         self.active_mode = 0 #The mechanical mode currently checked.
         self.active_chip = '' #The name of the active chip
@@ -134,7 +134,7 @@ class WaferAnalyzer(QMainWindow):
         self.interactive_wafer.signal_id_changed.connect(self.set_active_chip)
         self.plotContainer.addWidget(self.interactive_wafer)
 
-        if self._creation_mode is False:
+        if self._creation_mode == 2:
             self.create_wafer_container_list(self.wafer_directory / self.wafer_name)
 
         self.prepare_demodulatorselection_combobox()
@@ -205,11 +205,13 @@ class WaferAnalyzer(QMainWindow):
         self.wafer_name = wafer_name
         self.zurich_id = lockinID
 
-        if self._creation_mode:
+        if self._creation_mode == 0:
             self.create_wafer_folder(self.wafer_directory, self.wafer_name,
                                      self.rows, self.cols, self.mode_num )
             for ii in range(self.mode_num):
                 self.wafer_list.append(WaferDataContainer(ii))
+            self.connect_to_zurich(lockinID)
+        elif self._creation_mode == 1:
             self.connect_to_zurich(lockinID)
         self.add_wafer_layout()
 
@@ -349,16 +351,22 @@ class WaferAnalyzer(QMainWindow):
             directory = Path(directory)
         self._creation_mode = mode
 
-        if self._creation_mode:
+        if self._creation_mode == 0:
             self.call_wafer_creation_dialog()
             self.wafer_directory = directory
-        else:
+        elif self._creation_mode == 1:
+            chrows, chcols, mmode, zid = self.get_wafer_info(directory)
+            self.wafer_directory = directory.parents[0]
+            self.set_wafer_settings(chrows, chcols, mmode, directory.name, zid)
+        elif self._creation_mode ==2:
             self.executionButton.setEnabled(False)
-            self.get_wafer_info(directory)
+            chrows, chcols, mmode, zid = self.get_wafer_info(directory)
+            self.wafer_directory = directory.parents[0]
+            self.set_wafer_settings(chrows, chcols, mmode, directory.name, zid)
 
     def get_wafer_info(self, directory):
         """
-        Called when loading an existing wafer
+        Called when loading an existing wafer, or appending mode.
         """
         with open(directory /'wafer_info.txt', 'r') as file:
             for line in file.readlines():
@@ -371,8 +379,7 @@ class WaferAnalyzer(QMainWindow):
                 elif "Lock-in ID" in line:
                     zurich_id = line.split(":")[1].strip()
 
-        self.wafer_directory = directory.parents[0]
-        self.set_wafer_settings(chip_rows, chip_cols, max_mode, directory.name, zurich_id)
+        return [chip_rows, chip_cols, max_mode, zurich_id]
 
     def prepare_demodulatorselection_combobox(self):
         base_string = "Mode {:d}"
@@ -396,7 +403,7 @@ class WaferAnalyzer(QMainWindow):
         for chipID, chip in self.interactive_wafer.chip_collection.items():
             if (chipID == self.active_chip) and chip.isclicked:
                 chip.unclick()
-            if chipID not in available_chips and not self._creation_mode:
+            if chipID not in available_chips and self._creation_mode == 2:
                 chip.setActivated(False)
             else:
                 chip.setActivated(True)
