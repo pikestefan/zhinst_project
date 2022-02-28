@@ -212,6 +212,8 @@ class WaferAnalyzer(QMainWindow):
                 self.wafer_list.append(WaferDataContainer(ii))
             self.connect_to_zurich(lockinID)
         elif self._creation_mode == 1:
+            for ii in range(self.mode_num):
+                self.wafer_list.append(WaferDataContainer(ii))
             self.connect_to_zurich(lockinID)
         self.add_wafer_layout()
 
@@ -517,7 +519,7 @@ class WaferAnalyzer(QMainWindow):
             self.data_plot.setData(timestamp, plot_quad)
             if (requested_quad == 2) and rdown_data.isFitted():
                 fit_data = rdown_data.get_fitted_data()
-                self.fit_plot.setData(fit_data[0], fit_data[1])
+                self.fit_plot.setData(fit_data[0], fit_data[1] * 1e3)
             else:
                 self.fit_plot.clear()
             self.dataPlotWidget.autoRange()

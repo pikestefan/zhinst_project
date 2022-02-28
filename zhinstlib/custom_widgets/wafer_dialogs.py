@@ -19,6 +19,7 @@ class ChooseModeDialog(QDialog):
 
         self.createButton.clicked.connect(self.create_load)
         self.loadButton.clicked.connect(self.create_load)
+        self.appendButton.clicked.connect(self.create_load)
 
         self._dialog = QFileDialog()
 
