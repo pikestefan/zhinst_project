@@ -1,5 +1,7 @@
-from PyQt5.QtWidgets import QTextEdit,QSizePolicy, QWidget
+from PyQt5.QtWidgets import QTextEdit,QSizePolicy, QWidget, QMenu
 from PyQt5.QtCore import pyqtSignal, QEvent
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QAction
 
 class InteractingLineEdit(QTextEdit):
 
@@ -19,6 +21,9 @@ class InteractingLineEdit(QTextEdit):
                                                  "hover": "background-color:rgb(155,225,199);border: 3px solid rgb(0,118,19); font-size:10px; color:k",
                                                  "clicked" : "background-color:rgb(158,255,245);border: 3px solid rgb(0,148,49); font-size:10px; color:k"},
                                  "data missing": {"no hover": "background-color:rgb(150,150,150);border: 1px solid black; font-size:10px; color:k"},
+                                 "damaged": {"no hover": "background-color:rgb(255,189,193);border: 1px solid black; font-size:10px; color:k",
+                                             "hover": "background-color:rgb(255,189,193);border: 3px solid red; font-size:10px; color:k",
+                                             "clicked": "background-color:rgb(255,86,98);border: 3px solid rgb(0,148,49); font-size:10px; color:k"},
                                  }
         self._active_stylesheet = self._stylesheet_modes["standard"]
         self.setStyleSheet(self._active_stylesheet["no hover"])
@@ -34,13 +39,27 @@ class InteractingLineEdit(QTextEdit):
             elif event.type() == QEvent.Leave and not self.isclicked:
                 self.setStyleSheet(self._active_stylesheet["no hover"])
             elif event.type() == QEvent.MouseButtonPress:
-                if not self.isclicked:
-                    self.isclicked = True
-                    self.setStyleSheet(self._active_stylesheet["clicked"])
-                else:
-                    self.isclicked = False
-                    self.setStyleSheet(self._active_stylesheet["hover"])
-                self.signal_widget_clicked.emit(self.id)
+                if event.button() == Qt.LeftButton:
+                    if not self.isclicked:
+                        self.isclicked = True
+                        self.setStyleSheet(self._active_stylesheet["clicked"])
+                    else:
+                        self.isclicked = False
+                        self.setStyleSheet(self._active_stylesheet["hover"])
+                    self.signal_widget_clicked.emit(self.id)
+                elif event.button() == Qt.RightButton:
+                    menu = QMenu()
+                    damaged = menu.addAction('Mark as damaged')
+                    usable = menu.addAction('Mark as usable')
+                    if menu.exec_(event.globalPos()) == damaged:
+                        self.set_active_stylesheet("damaged")
+                    else:
+                        if self._data_uploaded:
+                            self.set_active_stylesheet("data loaded")
+                        else:
+                            self.set_active_stylesheet("standard")
+
+
         return QWidget.eventFilter(self, source, event)
 
     def set_interacting(self, value):
