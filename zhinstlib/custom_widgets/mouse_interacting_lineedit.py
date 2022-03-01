@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import QAction
 class InteractingLineEdit(QTextEdit):
 
     signal_widget_clicked = pyqtSignal(str)
+    signal_damaged_emit = pyqtSignal(str, bool)
     def __init__(self, id, fixed_size = 80, *args, **kwargs):
         super(InteractingLineEdit, self).__init__(*args, **kwargs)
         self.id = id
@@ -52,14 +53,9 @@ class InteractingLineEdit(QTextEdit):
                     damaged = menu.addAction('Mark as damaged')
                     usable = menu.addAction('Mark as usable')
                     if menu.exec_(event.globalPos()) == damaged:
-                        self.set_active_stylesheet("damaged")
+                        self.signal_damaged_emit(self.id, True)
                     else:
-                        if self._data_uploaded:
-                            self.set_active_stylesheet("data loaded")
-                        else:
-                            self.set_active_stylesheet("standard")
-
-
+                        self.signal_damaged_emit(self.id, False)
         return QWidget.eventFilter(self, source, event)
 
     def set_interacting(self, value):
@@ -103,6 +99,20 @@ class InteractingLineEdit(QTextEdit):
         self._data_uploaded = value
         if value is True:
             self._active_stylesheet = self._stylesheet_modes["data loaded"]
+        else:
+            self._active_stylesheet = self._stylesheet_modes["standard"]
+
+        if self.isclicked:
+            self.setStyleSheet(self._active_stylesheet["clicked"])
+        else:
+            self.setStyleSheet(self._active_stylesheet["no hover"])
+
+    def setChipDamaged(self, value):
+        if not self._interaction_enabled:
+            return
+
+        if value is False:
+            self._active_stylesheet = self._stylesheet_modes["damaged"]
         else:
             self._active_stylesheet = self._stylesheet_modes["standard"]
 

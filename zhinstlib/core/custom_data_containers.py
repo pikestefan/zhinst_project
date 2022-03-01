@@ -10,6 +10,7 @@ class WaferFitContainer(object):
     """
     def __init__(self):
         self._mode_dictionary = dict() #Each item will be a dictionary of chips
+        self._chip_usable = dict() #Use to store if the chip has been marked as usable or not
 
     def set_freq_Q(self, mode_frequency, Qfactor, mode, chipID):
         if mode not in self._mode_dictionary.keys():
@@ -35,8 +36,16 @@ class WaferFitContainer(object):
     def get_chips_with_Qs(self, mode_idx):
         return self._mode_dictionary[mode_idx].keys()
 
+    def set_chip_usable(self, value, mode, chipID):
+        if mode not in self._chip_usable.keys():
+            self._chip_usable[mode] = dict()
+            self._chip_usable[mode][chipID] = value
 
-
+    def isUsable(self, mode_idx, chipID):
+        if mode in self._chip_usable and chipID in self._chip_usable[mode]:
+            return self._chip_usable[mode][chipID]
+        else:
+            return True
 """
 Here there are some nested classes:
 - WaferContainer: a collection of chips for a given mechanical mode. Each chip is a RingdownContainer.

@@ -132,6 +132,7 @@ class WaferAnalyzer(QMainWindow):
         lateral_size = self.set_wafer_widg_background()
         self.interactive_wafer = InteractiveWafer(self.rows, self.cols, lateral_size)
         self.interactive_wafer.signal_id_changed.connect(self.set_active_chip)
+        self.interactive_wafer.signal_id_damaged.connect(self.set_chip_damaged)
         self.plotContainer.addWidget(self.interactive_wafer)
 
         if self._creation_mode == 2:
@@ -413,7 +414,11 @@ class WaferAnalyzer(QMainWindow):
             if chipID in loaded_chips:
                 chip.setDataUploaded(True)
             else:
-                chip.setDataUploaded(False)
+                if not self.waferfitcontainer.isUsable(self.active_mode, chipID) and (self._creation_mode==1 or
+                                                                                      self._creation_mode == 0):
+                    chip.setChipDamaged(True)
+                else:
+                    chip.setDataUploaded(False)
 
             self.update_chip_info(self.active_mode, chipID)
 
@@ -662,6 +667,10 @@ class WaferAnalyzer(QMainWindow):
             self.dataPlotWidget.setLogMode(y=False)
         else:
             self.dataPlotWidget.setLogMode(y=True)
+
+    def set_chip_damaged(self, id, value):
+        self.waferfitcontainer.set_chip_usable(self.active_mode, id, value)
+        self.interactive_wafer.chip_collection[id].setChipDamaged = value
 
     def abort_window(self):
         sys.exit()
