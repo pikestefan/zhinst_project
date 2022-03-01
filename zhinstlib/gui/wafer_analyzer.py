@@ -644,17 +644,6 @@ class WaferAnalyzer(QMainWindow):
 
         self.refresh_plot()
 
-    def chunkify_wafer(self):
-        for loaded_chip in self.wafer_list[self.active_mode].get_loaded_chips():
-            ringdown_data = self.wafer_list[self.active_mode].get_ringdowns(loaded_chip)
-            selected_ringdown_idx = 0
-            reference_demod = int(self.referenceDemodComboBox.currentText()) - 1
-            while not ringdown_data.ringdown(0).isChunkified():
-                ringdown_data.chunkify_ringdown(selected_ringdown_idx, reference_demod)
-
-        self.update_spinbox()
-        self.refresh_plot()
-
     def update_chip_info(self, active_mode, chipID):
         chip = self.interactive_wafer.chip_collection[chipID]
         if self.waferfitcontainer.hasQs(active_mode, chipID):
