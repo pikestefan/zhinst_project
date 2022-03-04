@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QAction
 class InteractingLineEdit(QTextEdit):
 
     signal_widget_clicked = pyqtSignal(str)
-    signal_damaged_emit = pyqtSignal(str, bool)
+    signal_damaged = pyqtSignal(str, bool)
     def __init__(self, id, fixed_size = 80, *args, **kwargs):
         super(InteractingLineEdit, self).__init__(*args, **kwargs)
         self.id = id
@@ -53,9 +53,9 @@ class InteractingLineEdit(QTextEdit):
                     damaged = menu.addAction('Mark as damaged')
                     usable = menu.addAction('Mark as usable')
                     if menu.exec_(event.globalPos()) == damaged:
-                        self.signal_damaged_emit(self.id, True)
+                        self.signal_damaged.emit(self.id, True)
                     else:
-                        self.signal_damaged_emit(self.id, False)
+                        self.signal_damaged.emit(self.id, False)
         return QWidget.eventFilter(self, source, event)
 
     def set_interacting(self, value):
@@ -111,7 +111,7 @@ class InteractingLineEdit(QTextEdit):
         if not self._interaction_enabled:
             return
 
-        if value is False:
+        if value is True:
             self._active_stylesheet = self._stylesheet_modes["damaged"]
         else:
             self._active_stylesheet = self._stylesheet_modes["standard"]

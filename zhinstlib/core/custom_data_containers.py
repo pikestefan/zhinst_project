@@ -39,11 +39,11 @@ class WaferFitContainer(object):
     def set_chip_usable(self, value, mode, chipID):
         if mode not in self._chip_usable.keys():
             self._chip_usable[mode] = dict()
-            self._chip_usable[mode][chipID] = value
+        self._chip_usable[mode][chipID] = value
 
     def isUsable(self, mode_idx, chipID):
-        if mode in self._chip_usable and chipID in self._chip_usable[mode]:
-            return self._chip_usable[mode][chipID]
+        if mode_idx in self._chip_usable and chipID in self._chip_usable[mode_idx]:
+            return self._chip_usable[mode_idx][chipID]
         else:
             return True
 """

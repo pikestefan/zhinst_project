@@ -6,7 +6,7 @@ from zhinstlib.custom_widgets.mouse_interacting_lineedit import InteractingLineE
 class InteractiveWafer(QWidget):
 
     signal_id_changed = pyqtSignal(str)
-    signal_id_damaged = pyqtSignal(str, int)
+    signal_id_damaged = pyqtSignal(str, bool)
     def __init__(self, rows=1, cols=1, fixed_size=100, *args, **kwargs):
         super(InteractiveWafer, self).__init__()
         self.rows = rows
@@ -49,7 +49,7 @@ class InteractiveWafer(QWidget):
                     widgy = InteractingLineEdit(temp_id, self.fixed_size)
                     self.chip_collection[temp_id] = widgy
                     widgy.signal_widget_clicked.connect(self.update_square)
-                    widgy.signal_damaged_emit.connect(self.marked_damaged)
+                    widgy.signal_damaged.connect(self.marked_damaged)
                     layout.addWidget(widgy, ii, jj)
 
         #Add four spacers on the four square corners to center the chips
