@@ -38,7 +38,7 @@ def power_spectrum(timetrace, signal, time_chunk=1, shift_freq = True, return_av
 
 
 def get_Q_factor(ringdown, res_freq, threshold=200e-6, *args, **kwargs):
-    timetrace, decay = ringdown[:, 0], ringdown[:, 1]
+    timetrace, decay = ringdown[:, 0], np.copy(ringdown[:, 1])
     decay /= decay.max()
     data_above_thresh = decay[decay > threshold]
     gamma_guess = (-2 * np.diff(np.log(data_above_thresh)) / (timetrace[1] - timetrace[0])).mean()
