@@ -153,12 +153,12 @@ def import_ringdowns(folder_path, signal_demod='0', reference_demod='1', file_ty
             trigger = ref_array[:, 1]
         else:
             with h5py.File(h5file, 'r') as file:
-                tstamp = file[common_h5_path + f'{signal_demod}/sample/timestamp'][:]
+                tstamp = file[common_h5_path + f'{signal_demod}/sample.x/timestamp'][:]
 
-                x_sig, y_sig = (file[common_h5_path + f'{signal_demod}/sample/x'],
-                                file[common_h5_path + f'{signal_demod}/sample/y'])
-                x_ref, y_ref = (file[common_h5_path + f'{reference_demod}/sample/x'],
-                                file[common_h5_path + f'{reference_demod}/sample/y'])
+                x_sig, y_sig = (file[common_h5_path + f'{signal_demod}/sample.x/value'],
+                                file[common_h5_path + f'{signal_demod}/sample.y/value'])
+                x_ref, y_ref = (file[common_h5_path + f'{reference_demod}/sample.x/value'],
+                                file[common_h5_path + f'{reference_demod}/sample.y/value'])
 
                 signal_norm = np.abs(x_sig[:] + 1j * y_sig[:])
 
