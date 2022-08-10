@@ -14,6 +14,9 @@ def nlin_rdown(t, gamma, gamma_nlin, y0, A):
 def lin_rdown(t, gamma, y0, A):
     return A * np.exp(-gamma*t/2) + y0
 
+def lin_rdown_v2(t, gamma, y0, A):
+    return np.sqrt(A**2 * np.exp(-gamma * t ) + y0**2)
+
 def parametric_gain(phi_res = np.array([]), phi_par = 0, kpkT_ratio = 0):
     if isinstance(kpkT_ratio, np.ndarray):
         if not isinstance(phi_res, np.ndarray):
