@@ -30,11 +30,13 @@ class SelectableAreaPlotWidget(pg.PlotWidget):
             self.addItem(self.rect)
         self.rect.setRect(qrectf)
 
-    def hideRect(self, xrange):
+    def hideRect(self, xrange, yrange):
         self.removeItem(self.rect)
         self.rect = None
         self.getViewBox().enableAutoRange()
         self.setXRange(xrange[0], xrange[1], padding=0)
+        if yrange:
+            self.setYRange(yrange[0], yrange[1], padding=0)
 
 class DownsamplerPlotDataItem(PlotDataItem):
     """
@@ -77,7 +79,7 @@ class DownsamplerPlotDataItem(PlotDataItem):
 
 class ViewForBoxDrag(pg.ViewBox):
     signalUpdateRect = pyqtSignal(QtCore.QRectF)
-    signalClearRect = pyqtSignal(list)
+    signalClearRect = pyqtSignal(list, list)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.start = None
@@ -106,17 +108,22 @@ class ViewForBoxDrag(pg.ViewBox):
                 if keymods and QtCore.Qt.ShiftModifier:
                     height = self.viewHeight
                     y0 = self.y0
+                    change_y = False
                 #Otherwise, just draw a square
                 else:
                     height = abs(currpos.y() - self.start.y())
                     y0 = self.start.y() if self.start.y() <= currpos.y() else currpos.y()
+                    change_y = True
                 self.signalUpdateRect.emit(QtCore.QRectF(x0, y0, width, height))
             if ev.isFinish():
-                #TODO: at the moment, the signal emits only the x range. Send also the y range, and use it
-                # to rescale the plot when dragging the square selection, while do nothing if pressing shift
                 xpositions = [self.start.x(), self.mapToView(ev.pos()).x()]
                 xpositions.sort()
-                self.signalClearRect.emit(xpositions)
+                if change_y:
+                    ypositions = [self.start.y(), self.mapToView(ev.pos()).y()]
+                    ypositions.sort()
+                else:
+                    ypositions = []
+                self.signalClearRect.emit(xpositions, ypositions)
         else:
             super().mouseDragEvent(ev)
 

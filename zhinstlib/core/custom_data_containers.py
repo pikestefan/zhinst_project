@@ -272,7 +272,7 @@ class LockinData(object):
             try:
                 fitfunc = lin_rdown_v2 # Here in case it is going to be replaced by some user-defined function
                 optimal_pars, cov_mat = curve_fit(fitfunc, x_ax_fit, y_ax_fit, p0 = [gamma_guess, y0_guess, amp_guess],
-                                                  maxfev=10000, gtol = 1e-16)
+                                                  maxfev=10000, gtol = 1e-8)
 
                 signal_demod.set_mechmode_gamma(optimal_pars[0])
 
