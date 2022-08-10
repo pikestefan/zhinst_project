@@ -1,7 +1,7 @@
 import numpy as np
 import h5py
 from zhinstlib.data_processing.data_manip import chunkify_timetrace
-from zhinstlib.data_processing.fitting_funcs import lin_rdown
+from zhinstlib.data_processing.fitting_funcs import lin_rdown, lin_rdown_v2
 from scipy.optimize import curve_fit
 
 class WaferFitContainer(object):
@@ -263,14 +263,16 @@ class LockinData(object):
             #TODO: for now juse use a linear ringdown. In the future, it should be a user choice.
 
             #Use the first half a second of decay to guess the gamma
-            gamma_guess = abs( (np.diff( y_ax_fit[x_ax_fit <= 0.5]) / np.diff( x_ax_fit[x_ax_fit <= 0.5] )).mean() )
+            fit_mask = y_ax_fit >= (y_ax_fit[0] * np.exp(-1))
+            y_for_guess =  np.log(y_ax_fit[fit_mask] / y_ax_fit[0])
+            gamma_guess = 2 * abs( (np.diff(y_for_guess) / np.diff( x_ax_fit[fit_mask] )).mean() )
             amp_guess = y_ax_fit[0]
             y0_guess = 0
 
             try:
-                fitfunc = lin_rdown # Here in case it is going to be replaced by some user-defined function
+                fitfunc = lin_rdown_v2 # Here in case it is going to be replaced by some user-defined function
                 optimal_pars, cov_mat = curve_fit(fitfunc, x_ax_fit, y_ax_fit, p0 = [gamma_guess, y0_guess, amp_guess],
-                                                  maxfev=10000, gtol = 1e-12)
+                                                  maxfev=10000, gtol = 1e-16)
 
                 signal_demod.set_mechmode_gamma(optimal_pars[0])
 
@@ -278,7 +280,6 @@ class LockinData(object):
 
             except:
                 success_flag = -1
-
         return success_flag
 
 class DemodulatorDataContainer(object):
