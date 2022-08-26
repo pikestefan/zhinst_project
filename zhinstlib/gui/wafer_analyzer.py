@@ -227,38 +227,35 @@ class WaferAnalyzer(QMainWindow):
         demods = self.zi_device.get_available_demods()
         self.add_demodulators(demods)
 
-        #Connect the signal required to stop or start the acquisition
+        # Connect the signal required to stop or start the acquisition
         self.executionButton.clicked.connect(self.initialize_daq_module)
         self.executionButton.clicked.connect(self.stop_acquisition)
 
     def initialize_daq_module(self, buttonval):
         if buttonval is not True:
             return
-        if self.active_chip: #If no chip is selected, the ID is the empty string
-            saving_dir = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode+1}"
+        if self.active_chip:  # If no chip is selected, the ID is the empty string
+            saving_dir = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode + 1}"
             desired_signals = ['x', 'y', 'frequency']
 
-            saving_kwargs = {'save_files': False,
-                             'saving_onread':False
-                             }
             stream_read_kwargs = {'read_duration': 9000,
                                   'burst_duration': 0.5}
 
             subscribe_demods = []
             for chbox in self.demod_collection:
                 if chbox.isChecked():
-                    subscribe_demods.append(int(chbox.text())-1)
+                    subscribe_demods.append(int(chbox.text()) - 1)
 
             if len(subscribe_demods) == 0:
                 print("You need to select at least a demodulator to start the acquisition.")
                 self.executionButton.setChecked(False)
                 return
 
-            self._daqmodule_name, self._sig_paths = self.zi_device.set_subscribe_daq(subscribe_demods,
-                                                                                    desired_signals,
-                                                                                    **stream_read_kwargs,
-                                                                                     **saving_kwargs)
-            self._sig_paths = [path.lower() for path in self._sig_paths]
+            demod_dictionary = dict(zip(subscribe_demods, [desired_signals] * len(subscribe_demods)))
+
+            self._daqmodule_name = self.zi_device.set_subscribe_daq(demod_dictionary,
+                                                                    **stream_read_kwargs)
+            self._sig_paths = self.zi_device.daqmodules_sigs[self._daqmodule_name]
 
             ### Now create the saving folder if it doesn't exist
             saving_dir.mkdir(parents=True, exist_ok=True)
@@ -269,7 +266,7 @@ class WaferAnalyzer(QMainWindow):
             ringdown_name = (4 - len(file_num)) * "0" + file_num  # Eg: file_num = 3, then ringdown_name = 0003
             self._current_savefile = saving_dir / f"ringdown{ringdown_name}.h5"
             with h5py.File(self._current_savefile, 'w') as h5file:
-                h5kwargs = {'shape':(0,), 'maxshape': (None,), 'dtype':np.float64}
+                h5kwargs = {'shape': (0,), 'maxshape': (None,), 'dtype': np.float64}
                 for path in self._sig_paths:
                     h5file.create_dataset(name=path + '/timestamp', **h5kwargs)
                     h5file.create_dataset(name=path + '/value', **h5kwargs)
@@ -702,71 +699,3 @@ class WaferAnalyzer(QMainWindow):
                 line[2] /= 1e6
                 file.write("{}\t{:.3f}\t{:.1f}\t{}\n".format(*line))
 
-
-class WaferAnalyzer_vtest(WaferAnalyzer):
-    def __init__(self):
-        super(WaferAnalyzer_vtest, self).__init__()
-
-    def connect_to_zurich(self, lockinID):
-        try:
-            self.zi_device = moddedPyQtziVirtualDevice(lockinID)
-        except:
-            print(f"Failed connecting to {lockinID}. Aborted.")
-            self.abort_window()
-        demods = self.zi_device.get_available_demods()
-        self.add_demodulators(demods)
-
-        #Connect the signal required to stop or start the acquisition
-        self.executionButton.clicked.connect(self.initialize_daq_module)
-        self.executionButton.clicked.connect(self.stop_acquisition)
-
-    def initialize_daq_module(self, buttonval):
-        if buttonval is not True:
-            return
-        if self.active_chip: #If no chip is selected, the ID is the empty string
-            saving_dir = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode+1}"
-            desired_signals = ['x', 'y', 'frequency']
-
-            stream_read_kwargs = {'read_duration': 9000,
-                                  'burst_duration': 0.5}
-
-            subscribe_demods = []
-            for chbox in self.demod_collection:
-                if chbox.isChecked():
-                    subscribe_demods.append(int(chbox.text())-1)
-
-            if len(subscribe_demods) == 0:
-                print("You need to select at least a demodulator to start the acquisition.")
-                self.executionButton.setChecked(False)
-                return
-
-            self._daqmodule_name = self.zi_device.set_subscribe_daq(subscribe_demods, desired_signals,
-                                                                    **stream_read_kwargs)
-            self._sig_paths = self.zi_device.daqmodules_sigs[self._daqmodule_name]
-
-            ### Now create the saving folder if it doesn't exist
-            saving_dir.mkdir(parents=True, exist_ok=True)
-
-            ### Now create the h5 file. First get the h5 files in the folder, to pick the file name.
-            file_num = len(list(saving_dir.glob('*h5')))
-            file_num = str(file_num)
-            ringdown_name = (4 - len(file_num)) * "0" + file_num  # Eg: file_num = 3, then ringdown_name = 0003
-            self._current_savefile = saving_dir / f"ringdown{ringdown_name}.h5"
-            with h5py.File(self._current_savefile, 'w') as h5file:
-                h5kwargs = {'shape':(0,), 'maxshape': (None,), 'dtype':np.float64}
-                for path in self._sig_paths:
-                    h5file.create_dataset(name=path + '/timestamp', **h5kwargs)
-                    h5file.create_dataset(name=path + '/value', **h5kwargs)
-
-            self.disableNonAcqWidgets(True)
-            ####Synchronize and start acquisition
-            self.zi_device.sync()
-            self.zi_device.execute_daqmodule(self._daqmodule_name)
-            self._saving_timer.start(self._saving_timeout)
-        else:
-            pass
-            self.executionButton.setChecked(False)
-
-    def acquire_data(self):
-        temp_data = self.zi_device.daqmodules[self._daqmodule_name].read(True)
-        self.signal_data_acquired.emit(temp_data)
