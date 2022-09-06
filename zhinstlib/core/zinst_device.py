@@ -206,35 +206,6 @@ class ziVirtualDevice(object):
 
         return module_name
 
-    def _read_data_stream(
-        self,
-        daq_module=None,
-        data_dictionary=None,
-        signal_paths=None,
-        save_to_dictionary=True,
-    ):
-        """
-        Read a data stream. Be aware that this function returns only the last burst of the data stream.
-
-        :param daq_module: dataAcquisitionModule class, a data acquisition module.
-        :param data_dictionary: a dictionary to which values are appended.
-        :param signal_paths: list of str, the list of signal paths to which the daq module is subscribed.
-        :return: dict, the updated data_dictionary
-        """
-        data_read = daq_module.read(True)
-        if save_to_dictionary:
-            returned_sig_paths = [
-                signal_path.lower() for signal_path in data_read.keys()
-            ]
-            for signal_path in signal_paths:
-                if signal_path.lower() in returned_sig_paths:
-                    for ii, signal_burst in enumerate(data_read[signal_path.lower()]):
-                        time_ax = signal_burst["timestamp"][0, :] / self.clockbase
-                        value = signal_burst["value"][0, :]
-                        data_dictionary[signal_path].append([time_ax, value])
-
-        return data_dictionary
-
     def read_daq_module(self, daq_module_name, clear_after_finish=False):
         daq_module = self.daqmodules[daq_module_name]
         daq_module_signals = self.daqmodules_sigs[daq_module_name]
