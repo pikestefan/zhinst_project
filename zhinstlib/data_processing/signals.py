@@ -4,7 +4,9 @@ from scipy.optimize import curve_fit
 from zhinstlib.data_processing import fitting_funcs
 
 
-def power_spectrum(timetrace, signal, time_chunk=1, shift_freq = True, return_average=True):
+def power_spectrum(
+    timetrace, signal, time_chunk=1, shift_freq=True, return_average=True
+):
 
     tstep = timetrace[1] - timetrace[0]
 
@@ -14,9 +16,13 @@ def power_spectrum(timetrace, signal, time_chunk=1, shift_freq = True, return_av
     chunks = int(sig_len // chunk_len)
 
     if chunks == 0:
-        raise (Exception("The requested time chunk exceeds the total signal length. Decrease the time_chunk value."))
+        raise (
+            Exception(
+                "The requested time chunk exceeds the total signal length. Decrease the time_chunk value."
+            )
+        )
 
-    reduced_signal = signal[:chunks * chunk_len]
+    reduced_signal = signal[: chunks * chunk_len]
 
     reduced_signal = reduced_signal.reshape((chunks, chunk_len))
 
@@ -41,12 +47,15 @@ def get_Q_factor(ringdown, res_freq, threshold=200e-6, *args, **kwargs):
     timetrace, decay = ringdown[:, 0], np.copy(ringdown[:, 1])
     decay /= decay.max()
     data_above_thresh = decay[decay > threshold]
-    gamma_guess = (-2 * np.diff(np.log(data_above_thresh)) / (timetrace[1] - timetrace[0])).mean()
+    gamma_guess = (
+        -2 * np.diff(np.log(data_above_thresh)) / (timetrace[1] - timetrace[0])
+    ).mean()
 
     fit_guess = [gamma_guess, 0, 0, 1]
 
-    fit_result, _ = curve_fit(fitting_funcs.nlin_rdown, timetrace, decay, p0=fit_guess, *args, **kwargs)
+    fit_result, _ = curve_fit(
+        fitting_funcs.nlin_rdown, timetrace, decay, p0=fit_guess, *args, **kwargs
+    )
 
     Q_factor = 2 * np.pi * res_freq / fit_result[0]
     return fit_result, Q_factor
-
