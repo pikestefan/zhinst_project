@@ -14,12 +14,7 @@ import datetime
 from operator import itemgetter
 
 from zhinstlib.core.zinst_device import PyQtziVirtualDevice
-from zhinstlib.core.custom_data_containers import (
-    LockinData,
-    RingdownDataContainer,
-    WaferDataContainer,
-    WaferFitContainer,
-)
+from zhinstlib.core.custom_data_containers import LockinData, RingdownDataContainer, WaferDataContainer, WaferFitContainer
 from zhinstlib.custom_widgets.wafer_dialogs import WaferDialogGui, ChooseModeDialog
 from zhinstlib.custom_widgets.interactive_wafer import InteractiveWafer
 from zhinstlib.helpers.characterization_helpers import create_wafer
@@ -34,28 +29,24 @@ class WaferAnalyzer(QMainWindow):
     def __init__(self):
         super(WaferAnalyzer, self).__init__()
         self.this_dir = Path(__file__).resolve()
-        ui_file = self.this_dir.parents[1] / "ui_files" / "wafer_analyzer.ui"
+        ui_file = self.this_dir.parents[1] / 'ui_files' / 'wafer_analyzer.ui'
         uic.loadUi(ui_file, self)
 
         self.rows = 1
         self.cols = 1
         self.mode_num = 0
-        self.wafer_name = ""
+        self.wafer_name = ''
         self.wafer_directory = Path()
-        self.demod_collection = []  # list to contain the demod checkbuttons
-        self._creation_mode = 2  # Variable to communicate if the wafer is in wafer creation mode, or wafer loading mode
-        # Determines if the Zurich is connected or not, plus some extra behaviours.
-        self.active_mode = 0  # The mechanical mode currently checked.
-        self.active_chip = ""  # The name of the active chip
-        self.wafer_list = (
-            []
-        )  # A list of wafer "slices". Each slice corresponds to a mechanical mode.
-        self.zurich_id = ""
-        self.waferfitcontainer = (
-            WaferFitContainer()
-        )  # A dict that stores in memory the fit results, even when the data are deleted
+        self.demod_collection = [] #list to contain the demod checkbuttons
+        self._creation_mode = 2 #Variable to communicate if the wafer is in wafer creation mode, or wafer loading mode
+                                  #Determines if the Zurich is connected or not, plus some extra behaviours.
+        self.active_mode = 0 #The mechanical mode currently checked.
+        self.active_chip = '' #The name of the active chip
+        self.wafer_list = [] #A list of wafer "slices". Each slice corresponds to a mechanical mode.
+        self.zurich_id = ''
+        self.waferfitcontainer = WaferFitContainer() #A dict that stores in memory the fit results, even when the data are deleted
 
-        # Setting and attributes used in the wafer creation mode
+        #Setting and attributes used in the wafer creation mode
         self.zi_device = None
         self._saving_timeout = 2000
         self._daqmodule_name = None
@@ -66,15 +57,11 @@ class WaferAnalyzer(QMainWindow):
         self._saving_timer.timeout.connect(self.acquire_data)
         self.signal_data_acquired.connect(self.save_data, Qt.QueuedConnection)
         self.signal_data_saved.connect(self.display_file_size, Qt.QueuedConnection)
-        self.signal_data_uploaded.connect(
-            self.set_loaded_cell_style, Qt.QueuedConnection
-        )
+        self.signal_data_uploaded.connect(self.set_loaded_cell_style, Qt.QueuedConnection)
         self.actionExportMode.triggered.connect(self.export_data)
         ######
 
-        window_icon = QIcon(
-            str(self.this_dir.parents[1] / "artwork" / "logos" / "wanalyzer_icon.png")
-        )
+        window_icon = QIcon( str(self.this_dir.parents[1] / 'artwork' / 'logos' / 'wanalyzer_icon.png') )
         self.setWindowIcon(window_icon)
 
         self.initUI()
@@ -82,12 +69,10 @@ class WaferAnalyzer(QMainWindow):
     def initUI(self):
         self.open_mode_dialog()
 
-        self.executionButton.set_onoff_strings(["Stop recording", "Start recording"])
+        self.executionButton.set_onoff_strings(['Stop recording', 'Start recording'])
 
         self.quadratureRadioButtons = QButtonGroup()
-        for ii, btn in enumerate(
-            [self.xRadioBtn, self.yRadioBtn, self.rRadioBtn, self.phaseRadioBtn]
-        ):
+        for ii, btn in enumerate([self.xRadioBtn, self.yRadioBtn, self.rRadioBtn, self.phaseRadioBtn]):
             self.quadratureRadioButtons.addButton(btn)
             self.quadratureRadioButtons.setId(btn, ii)
 
@@ -105,27 +90,19 @@ class WaferAnalyzer(QMainWindow):
             self.actionRadioButtons.setId(btn, ii)
         self.selRdownBtn.setChecked(True)
 
-        self.dataPlotWidget.setBackground((56, 56, 56))
-        self.dataPlotWidget.getAxis("left").setPen("w")
-        self.dataPlotWidget.getAxis("left").setTextPen("w")
-        self.dataPlotWidget.getAxis("bottom").setPen("w")
-        self.dataPlotWidget.getAxis("bottom").setTextPen("w")
+        self.dataPlotWidget.setBackground((56,56,56))
+        self.dataPlotWidget.getAxis('left').setPen('w')
+        self.dataPlotWidget.getAxis('left').setTextPen('w')
+        self.dataPlotWidget.getAxis('bottom').setPen('w')
+        self.dataPlotWidget.getAxis('bottom').setTextPen('w')
 
-        self.data_plot = DownsamplerPlotDataItem(
-            pen=None,
-            symbol="t",
-            symbolPen=None,
-            symbolBrush=(228, 253, 255),
-            symbolSize=2,
-            max_data=60000,
-        )  # 60000 items gives a time resolution of 10ms for 10 minutes
-        self.fit_plot = pg.PlotDataItem(
-            pen=pg.mkPen("r", width=2)
-        )  # Here I'm sure that since I output the fit function, it's not oversampled.
+        self.data_plot = DownsamplerPlotDataItem(pen = None, symbol = 't', symbolPen = None,
+                                                 symbolBrush = (228,253,255), symbolSize = 2, max_data=60000) #60000 items gives a time resolution of 10ms for 10 minutes
+        self.fit_plot = pg.PlotDataItem(pen = pg.mkPen('r', width=2)) #Here I'm sure that since I output the fit function, it's not oversampled.
         self.dataPlotWidget.addItem(self.data_plot)
         self.dataPlotWidget.addItem(self.fit_plot)
 
-        # Signal connections
+        #Signal connections
         self.executionButton.toggled.connect(self.set_chip_interaction)
         self.loadSelectedButton.clicked.connect(self.load_single_ringdown)
         self.loadAllButton.clicked.connect(self.load_all_chip_ringdowns)
@@ -165,23 +142,14 @@ class WaferAnalyzer(QMainWindow):
         self.show()
 
     def set_wafer_widg_background(self):
-        image_path = (
-            self.this_dir.parents[1] / "artwork" / "widget_backgrounds" / "wafer.png"
-        )
-        image_path = str(image_path).replace("\\", "/")
-        style_command = (
-            f"QWidget#{self.backgroundWidget.objectName()} "
-            + "{border-image:url("
-            + image_path
-            + ")}"
-        )
+        image_path = self.this_dir.parents[1] / 'artwork' / 'widget_backgrounds' / 'wafer.png'
+        image_path = str(image_path).replace('\\', '/')
+        style_command = f"QWidget#{self.backgroundWidget.objectName()} " + "{border-image:url(" + image_path + ")}"
         self.backgroundWidget.setStyleSheet(style_command)
 
         container_width = self.backgroundWidget.width()
-        lateral_size = min(
-            floor(0.67 * container_width / self.rows),
-            floor(0.67 * container_width / self.cols),
-        )
+        lateral_size = min(floor(0.67 * container_width / self.rows),
+                           floor(0.67 * container_width / self.cols))
         return lateral_size
 
     def create_wafer_container_list(self, directory):
@@ -200,7 +168,7 @@ class WaferAnalyzer(QMainWindow):
                 if match is not None:
                     chipID = match.group(0)
                     for chip_directory_content in wafer_directory_content.iterdir():
-                        match = re.match(pattern_mode, chip_directory_content.name)
+                        match = re.match(pattern_mode, chip_directory_content.name )
                         if match is not None:
                             mode_num = int(match.group(1)) - 1
                             self.wafer_list[mode_num].add_available_chip(chipID)
@@ -222,20 +190,16 @@ class WaferAnalyzer(QMainWindow):
 
         try:
             (directory / wafername).mkdir(parents=False, exist_ok=False)
-            with open(directory / wafername / "wafer_info.txt", "w") as file:
+            with open(directory / wafername / 'wafer_info.txt', 'w') as file:
                 todaysdate = datetime.date.today().strftime("%d/%m/%y")
-                file.write(
-                    f"Date: {todaysdate}\nWafer name: {wafername}\nRows: {rows}\n"
-                    f"Columns: {cols}\nMaximum mode number:{mode}\n"
-                    f"Lock-in ID: {self.zurich_id}"
-                )
+                file.write(f"Date: {todaysdate}\nWafer name: {wafername}\nRows: {rows}\n"
+                           f"Columns: {cols}\nMaximum mode number:{mode}\n"
+                           f"Lock-in ID: {self.zurich_id}")
         except:
-            print(
-                f"Directory with name {wafername} in {directory} already exists. Operation aborted."
-            )
+            print(f"Directory with name {wafername} in {directory} already exists. Operation aborted.")
             self.abort_window()
 
-    def set_wafer_settings(self, rows, cols, mode_num, wafer_name, lockinID=None):
+    def set_wafer_settings(self, rows, cols, mode_num, wafer_name, lockinID = None):
         self.rows = rows
         self.cols = cols
         self.mode_num = mode_num
@@ -243,13 +207,8 @@ class WaferAnalyzer(QMainWindow):
         self.zurich_id = lockinID
 
         if self._creation_mode == 0:
-            self.create_wafer_folder(
-                self.wafer_directory,
-                self.wafer_name,
-                self.rows,
-                self.cols,
-                self.mode_num,
-            )
+            self.create_wafer_folder(self.wafer_directory, self.wafer_name,
+                                     self.rows, self.cols, self.mode_num )
             for ii in range(self.mode_num):
                 self.wafer_list.append(WaferDataContainer(ii))
             self.connect_to_zurich(lockinID)
@@ -268,57 +227,52 @@ class WaferAnalyzer(QMainWindow):
         demods = self.zi_device.get_available_demods()
         self.add_demodulators(demods)
 
-        # Connect the signal required to stop or start the acquisition
+        #Connect the signal required to stop or start the acquisition
         self.executionButton.clicked.connect(self.initialize_daq_module)
         self.executionButton.clicked.connect(self.stop_acquisition)
 
     def initialize_daq_module(self, buttonval):
         if buttonval is not True:
             return
-        if self.active_chip:  # If no chip is selected, the ID is the empty string
-            saving_dir = (
-                self.wafer_directory
-                / self.wafer_name
-                / self.active_chip
-                / f"mode{self.active_mode+1}"
-            )
-            desired_signals = ["x", "y", "frequency"]
+        if self.active_chip: #If no chip is selected, the ID is the empty string
+            saving_dir = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode+1}"
+            desired_signals = ['x', 'y', 'frequency']
 
-            saving_kwargs = {"save_files": False, "saving_onread": False}
-            stream_read_kwargs = {"read_duration": 9000, "burst_duration": 0.5}
+            saving_kwargs = {'save_files': False,
+                             'saving_onread':False
+                             }
+            stream_read_kwargs = {'read_duration': 9000,
+                                  'burst_duration': 0.5}
 
             subscribe_demods = []
             for chbox in self.demod_collection:
                 if chbox.isChecked():
-                    subscribe_demods.append(int(chbox.text()) - 1)
+                    subscribe_demods.append(int(chbox.text())-1)
 
             if len(subscribe_demods) == 0:
-                print(
-                    "You need to select at least a demodulator to start the acquisition."
-                )
+                print("You need to select at least a demodulator to start the acquisition.")
                 self.executionButton.setChecked(False)
                 return
 
-            self._daqmodule_name, self._sig_paths = self.zi_device.set_subscribe_daq(
-                subscribe_demods, desired_signals, **stream_read_kwargs, **saving_kwargs
-            )
+            self._daqmodule_name, self._sig_paths = self.zi_device.set_subscribe_daq(subscribe_demods,
+                                                                                    desired_signals,
+                                                                                    **stream_read_kwargs,
+                                                                                     **saving_kwargs)
             self._sig_paths = [path.lower() for path in self._sig_paths]
 
             ### Now create the saving folder if it doesn't exist
             saving_dir.mkdir(parents=True, exist_ok=True)
 
             ### Now create the h5 file. First get the h5 files in the folder, to pick the file name.
-            file_num = len(list(saving_dir.glob("*h5")))
+            file_num = len(list(saving_dir.glob('*h5')))
             file_num = str(file_num)
-            ringdown_name = (
-                4 - len(file_num)
-            ) * "0" + file_num  # Eg: file_num = 3, then ringdown_name = 0003
+            ringdown_name = (4 - len(file_num)) * "0" + file_num  # Eg: file_num = 3, then ringdown_name = 0003
             self._current_savefile = saving_dir / f"ringdown{ringdown_name}.h5"
-            with h5py.File(self._current_savefile, "w") as h5file:
-                h5kwargs = {"shape": (0,), "maxshape": (None,), "dtype": np.float64}
+            with h5py.File(self._current_savefile, 'w') as h5file:
+                h5kwargs = {'shape':(0,), 'maxshape': (None,), 'dtype':np.float64}
                 for path in self._sig_paths:
-                    h5file.create_dataset(name=path + "/timestamp", **h5kwargs)
-                    h5file.create_dataset(name=path + "/value", **h5kwargs)
+                    h5file.create_dataset(name=path + '/timestamp', **h5kwargs)
+                    h5file.create_dataset(name=path + '/value', **h5kwargs)
 
             self.disableNonAcqWidgets(True)
             ####Synchronize and start acquisition
@@ -335,16 +289,14 @@ class WaferAnalyzer(QMainWindow):
 
     def save_data(self, temp_data):
         if isinstance(temp_data, dict):
-            returned_sig_paths = [
-                signal_path.lower() for signal_path in temp_data.keys()
-            ]
+            returned_sig_paths = [signal_path.lower() for signal_path in temp_data.keys()]
         else:
             return
 
         for signal_path in self._sig_paths:
             if signal_path in returned_sig_paths:
-                # If the subscribed signal is present in the read data paths, read it, and then append it to the
-                # h5 file.
+                #If the subscribed signal is present in the read data paths, read it, and then append it to the
+                #h5 file.
                 time_ax_tot, value_tot = np.array([]), np.array([])
                 for ii, signal_burst in enumerate(temp_data[signal_path.lower()]):
                     time_ax = signal_burst["timestamp"][0, :]
@@ -353,15 +305,15 @@ class WaferAnalyzer(QMainWindow):
                     time_ax_tot = np.concatenate((time_ax_tot, time_ax))
                     value_tot = np.concatenate((value_tot, value))
 
-                with h5py.File(self._current_savefile, "a") as file:
-                    dset_time = file[signal_path + "/timestamp"]
-                    dset_value = file[signal_path + "/value"]
+                with h5py.File(self._current_savefile, 'a') as file:
+                    dset_time = file[signal_path + '/timestamp']
+                    dset_value = file[signal_path + '/value']
 
                     dset_time.resize((dset_time.shape[0] + len(time_ax_tot),))
                     dset_value.resize((dset_value.shape[0] + len(value_tot),))
 
-                    dset_time[-len(time_ax_tot) :] = time_ax_tot
-                    dset_value[-len(value_tot) :] = value_tot
+                    dset_time[-len(time_ax_tot):] = time_ax_tot
+                    dset_value[-len(value_tot):] = value_tot
 
         filesizeMb = self._current_savefile.stat().st_size / 1e6
         self.signal_data_saved.emit(filesizeMb)
@@ -370,13 +322,13 @@ class WaferAnalyzer(QMainWindow):
         if buttonval is False and self.active_chip:
             if self._daqmodule_name:
                 self.zi_device.stop_daqmodule(self._daqmodule_name)
-                # Read one last time
+                #Read one last time
                 self.zi_device.remove_daqmodule(self._daqmodule_name)
                 self._saving_timer.stop()
             self._daqmodule_name = None
             self._sig_paths = None
             self._current_savefile = Path()
-            self.display_file_size(0.0)
+            self.display_file_size(0.)
             self.disableNonAcqWidgets(False)
 
     def disableNonAcqWidgets(self, value):
@@ -409,7 +361,7 @@ class WaferAnalyzer(QMainWindow):
             chrows, chcols, mmode, zid = self.get_wafer_info(directory)
             self.wafer_directory = directory.parents[0]
             self.set_wafer_settings(chrows, chcols, mmode, directory.name, zid)
-        elif self._creation_mode == 2:
+        elif self._creation_mode ==2:
             self.executionButton.setEnabled(False)
             chrows, chcols, mmode, zid = self.get_wafer_info(directory)
             self.wafer_directory = directory.parents[0]
@@ -419,7 +371,7 @@ class WaferAnalyzer(QMainWindow):
         """
         Called when loading an existing wafer, or appending mode.
         """
-        with open(directory / "wafer_info.txt", "r") as file:
+        with open(directory /'wafer_info.txt', 'r') as file:
             for line in file.readlines():
                 if "Rows" in line:
                     chip_rows = int(line.split(":")[1].strip())
@@ -446,7 +398,7 @@ class WaferAnalyzer(QMainWindow):
         self.update_wafer_image()
 
     def update_wafer_image(self):
-        active_wafer = self.wafer_list[self.active_mode]
+        active_wafer =  self.wafer_list[self.active_mode]
 
         available_chips = active_wafer.get_available_chips()
         loaded_chips = active_wafer.get_loaded_chips()
@@ -463,9 +415,8 @@ class WaferAnalyzer(QMainWindow):
                 chip.setDataUploaded(True)
             else:
 
-                if not self.waferfitcontainer.isUsable(self.active_mode, chipID) and (
-                    self._creation_mode == 1 or self._creation_mode == 0
-                ):
+                if not self.waferfitcontainer.isUsable(self.active_mode, chipID) and (self._creation_mode==1 or
+                                                                                      self._creation_mode == 0):
                     chip.setChipDamaged(True)
                 else:
                     chip.setDataUploaded(False)
@@ -478,7 +429,7 @@ class WaferAnalyzer(QMainWindow):
                 self.load_ringdowns(chipID, self.active_mode)
 
     def load_single_ringdown(self):
-        if self.active_chip == "":
+        if self.active_chip == '':
             print("No chip selected.")
             return
 
@@ -486,24 +437,17 @@ class WaferAnalyzer(QMainWindow):
 
     def load_ringdowns(self, active_chip, active_mode):
 
-        ringdown_path = (
-            self.wafer_directory
-            / self.wafer_name
-            / active_chip
-            / f"mode{active_mode+1}"
-        )
-        basepath = f"{self.zurich_id}/demods"
-        ringdowns_in_path = list(ringdown_path.glob("*h5"))
+        ringdown_path = self.wafer_directory / self.wafer_name / active_chip / f"mode{active_mode+1}"
+        basepath = f'{self.zurich_id}/demods'
+        ringdowns_in_path = list(ringdown_path.glob('*h5'))
 
         if len(ringdowns_in_path) == 0:
-            print(
-                f"No data in the folder for chip {active_chip} and mode {active_mode}."
-            )
+            print(f"No data in the folder for chip {active_chip} and mode {active_mode}.")
             return
 
         current_wafer = self.wafer_list[active_mode]
 
-        # TODO: add a step to check for the number of ringdowns in a mode. If in the folder there are more than loaded, add them
+        #TODO: add a step to check for the number of ringdowns in a mode. If in the folder there are more than loaded, add them
 
         if active_chip in current_wafer.get_loaded_chips():
             print("Data already in memory.")
@@ -523,11 +467,9 @@ class WaferAnalyzer(QMainWindow):
         Called when loading new data, when clicking the mode selector, and when selecting a new chip.
         """
         if self.chipandmode_areLoaded(self.active_chip, self.active_mode):
-            ringdown_container = self.wafer_list[self.active_mode].get_ringdowns(
-                self.active_chip
-            )
+            ringdown_container = self.wafer_list[self.active_mode].get_ringdowns(self.active_chip)
             self.ringdownSpinBox.setMaximum(ringdown_container.get_ringdown_num())
-            if self.ringdownSpinBox.value() == 1:
+            if self.ringdownSpinBox.value()==1:
                 self.ringdownSpinBox.valueChanged.emit(1)
             else:
                 self.ringdownSpinBox.setValue(1)
@@ -536,27 +478,19 @@ class WaferAnalyzer(QMainWindow):
         """
         Called when loading new data, when clicking the mode selector, when selecting a new chip, and when changin the ringdown.
         """
-        for combobox in [
-            self.demodComboBox,
-            self.referenceDemodComboBox,
-            self.fitDemodComboBox,
-        ]:
+        for combobox in [self.demodComboBox, self.referenceDemodComboBox, self.fitDemodComboBox]:
             previous_text = combobox.currentText()
             if self.chipandmode_areLoaded(self.active_chip, self.active_mode):
-                ringdown_container = self.wafer_list[self.active_mode].get_ringdowns(
-                    self.active_chip
-                )
+                ringdown_container = self.wafer_list[self.active_mode].get_ringdowns(self.active_chip)
                 combobox.blockSignals(True)
                 combobox.clear()
-                availdemodlist = ringdown_container.get_ringdown_demods(
-                    selected_ringdown - 1
-                )  # -1 because of python indexing
+                availdemodlist = ringdown_container.get_ringdown_demods(selected_ringdown-1) #-1 because of python indexing
                 for demod in availdemodlist:
-                    combobox.addItem(str(demod + 1))
+                    combobox.addItem(str(demod+1))
 
                 idx = combobox.findText(previous_text)
-                if idx == -1:  # meaning that the search has failed:
-                    # Return the first element of the avaiable demods
+                if idx == -1: #meaning that the search has failed:
+                    #Return the first element of the avaiable demods
                     idx = combobox.findText(str(availdemodlist[0] + 1))
                 combobox.setCurrentIndex(idx)
                 combobox.blockSignals(False)
@@ -564,12 +498,8 @@ class WaferAnalyzer(QMainWindow):
 
     def refresh_plot(self):
         if self.chipandmode_areLoaded(self.active_chip, self.active_mode):
-            ringdown_container = self.wafer_list[self.active_mode].get_ringdowns(
-                self.active_chip
-            )
-            curr_rdown = (
-                self.ringdownSpinBox.value() - 1
-            )  # Always translate user-friendly data to python indices
+            ringdown_container = self.wafer_list[self.active_mode].get_ringdowns(self.active_chip)
+            curr_rdown = self.ringdownSpinBox.value() - 1 #Always translate user-friendly data to python indices
 
             curr_demod = int(self.demodComboBox.currentText()) - 1
             rdown_data = ringdown_container.ringdown(curr_rdown).demod(curr_demod)
@@ -578,18 +508,18 @@ class WaferAnalyzer(QMainWindow):
 
             timestamp = rdown_data.time_axis
             if requested_quad == 2:
-                plot_quad = rdown_data.r_quad * 1e3  # Convert the quadrature in mV
-                self.dataPlotWidget.setLabel("left", "Amplitude (mV)")
+                plot_quad = rdown_data.r_quad * 1e3 #Convert the quadrature in mV
+                self.dataPlotWidget.setLabel('left', 'Amplitude (mV)')
             elif requested_quad == 0:
                 plot_quad = rdown_data.x_quad * 1e3
-                self.dataPlotWidget.setLabel("left", "Amplitude (mV)")
+                self.dataPlotWidget.setLabel('left', 'Amplitude (mV)')
             elif requested_quad == 1:
                 plot_quad = rdown_data.y_quad * 1e3
-                self.dataPlotWidget.setLabel("left", "Amplitude (mV)")
+                self.dataPlotWidget.setLabel('left', 'Amplitude (mV)')
             elif requested_quad == 3:
                 plot_quad = rdown_data.phase_quad
-                self.dataPlotWidget.setLabel("left", "Phase (rad)")
-            self.dataPlotWidget.setLabel("bottom", "Time (s)")
+                self.dataPlotWidget.setLabel('left', 'Phase (rad)')
+            self.dataPlotWidget.setLabel('bottom', 'Time (s)')
 
             self.dataPlotWidget.disableAutoRange()
             self.data_plot.setData(timestamp, plot_quad)
@@ -611,7 +541,7 @@ class WaferAnalyzer(QMainWindow):
         self.interactive_wafer.chip_collection[chipID].setDataUploaded(False)
 
     def clear_memory(self):
-        active_wafer = self.wafer_list[self.active_mode]
+        active_wafer =  self.wafer_list[self.active_mode]
         active_wafer.clear_data()
         self.update_wafer_image()
         self.fit_plot.clear()
@@ -619,7 +549,7 @@ class WaferAnalyzer(QMainWindow):
 
     def clear_memory_selected(self):
         active_chip, active_mode = self.active_chip, self.active_mode
-        # if self.chipandmode_areLoaded(active_chip, active_mode):
+        #if self.chipandmode_areLoaded(active_chip, active_mode):
         #    self.loaded_data[active_chip].pop(active_mode)
         #    self.interactive_wafer.chip_collection[active_chip].setDataUploaded(False)
         self.wafer_list[active_mode].clear_chip(active_chip)
@@ -627,19 +557,18 @@ class WaferAnalyzer(QMainWindow):
         self.fit_plot.clear()
         self.data_plot.clear()
 
+
     def chipandmode_areLoaded(self, chip, mode):
         isloaded = chip in self.wafer_list[mode].get_loaded_chips()
         return isloaded
 
     def chunkify_all_chip_ringdowns(self):
-        if self.active_chip == "":
+        if self.active_chip == '':
             print("No chip selected.")
             return
 
         if self.chipandmode_areLoaded(self.active_chip, self.active_mode):
-            ringdowndata = self.wafer_list[self.active_mode].get_ringdowns(
-                self.active_chip
-            )
+            ringdowndata = self.wafer_list[self.active_mode].get_ringdowns(self.active_chip)
             selected_ringdown_idx = 0
             reference_demod = int(self.referenceDemodComboBox.currentText()) - 1
             while not ringdowndata.ringdown(0).isChunkified():
@@ -659,7 +588,7 @@ class WaferAnalyzer(QMainWindow):
         current_wafer = self.wafer_list[self.active_mode]
 
         if action_type == 0 or action_type == 1:
-            if self.active_chip == "":
+            if self.active_chip == '':
                 print("No chip selected.")
                 return
             ringdowndata = current_wafer.get_ringdowns(self.active_chip)
@@ -691,7 +620,7 @@ class WaferAnalyzer(QMainWindow):
         signal_demod = int(self.fitDemodComboBox.currentText()) - 1
         current_wafer = self.wafer_list[self.active_mode]
         if action_type == 0 or action_type == 1:
-            if self.active_chip == "":
+            if self.active_chip == '':
                 print("No chip selected.")
                 return
             ringdowndata = current_wafer.get_ringdowns(self.active_chip)
@@ -699,33 +628,24 @@ class WaferAnalyzer(QMainWindow):
             if action_type == 0:
                 current_xrange, _ = self.dataPlotWidget.viewRange()
                 ringdown_idx = self.ringdownSpinBox.value() - 1
-                fit_successful, fail_string = ringdowndata.fit_ringdown(
-                    ringdown_idx, signal_demod, timerange=current_xrange
-                )
+                fit_successful, fail_string = ringdowndata.fit_ringdown(ringdown_idx,signal_demod,
+                                                                        timerange = current_xrange)
             elif action_type == 1:
                 for ringdown_idx in range(ringdowndata.get_ringdown_num()):
-                    single_success, fail_string = ringdowndata.fit_ringdown(
-                        ringdown_idx, signal_demod
-                    )
+                    single_success, fail_string = ringdowndata.fit_ringdown(ringdown_idx, signal_demod)
             resfreq, Q = ringdowndata.calculate_Qs(signal_demod)
-            self.waferfitcontainer.set_freq_Q(
-                resfreq, Q, self.active_mode, self.active_chip
-            )
+            self.waferfitcontainer.set_freq_Q(resfreq, Q, self.active_mode, self.active_chip)
             self.update_chip_info(self.active_mode, self.active_chip)
 
         elif action_type == 2:
             for loaded_chip in current_wafer.get_loaded_chips():
                 ringdowndata = current_wafer.get_ringdowns(loaded_chip)
                 for ringdown_idx in range(ringdowndata.get_ringdown_num()):
-                    single_success, fail_string = ringdowndata.fit_ringdown(
-                        ringdown_idx, signal_demod
-                    )
+                    single_success, fail_string = ringdowndata.fit_ringdown(ringdown_idx, signal_demod)
                     if not single_success:
                         print(fail_string, f"Occured at chip {loaded_chip}")
                 resfreq, Q = ringdowndata.calculate_Qs(signal_demod)
-                self.waferfitcontainer.set_freq_Q(
-                    resfreq, Q, self.active_mode, loaded_chip
-                )
+                self.waferfitcontainer.set_freq_Q(resfreq, Q, self.active_mode, loaded_chip)
                 self.update_chip_info(self.active_mode, loaded_chip)
 
         self.refresh_plot()
@@ -734,8 +654,8 @@ class WaferAnalyzer(QMainWindow):
         chip = self.interactive_wafer.chip_collection[chipID]
         if self.waferfitcontainer.hasQs(active_mode, chipID):
             frequency, Q = self.waferfitcontainer.getQs(active_mode, chipID)
-            chip.setText("f<sub>0</sub> = {:.3f} MHz".format(frequency / 1e6))
-            chip.append("Q = {:.3f} M".format(Q / 1e6))
+            chip.setText("f<sub>0</sub> = {:.3f} MHz".format(frequency/1e6))
+            chip.append("Q = {:.3f} M".format(Q/1e6))
         else:
             chip.setText("")
 
@@ -766,24 +686,15 @@ class WaferAnalyzer(QMainWindow):
                 freq, Q = self.waferfitcontainer.getQs(self.active_mode, chipID)
                 data_list.append([chipID, freq, Q, None])
 
-        result_dir = (
-            self.wafer_directory
-            / self.wafer_name
-            / "results"
-            / f"mode{self.active_mode+1}"
-        )
+        result_dir = self.wafer_directory / self.wafer_name / 'results' / f'mode{self.active_mode+1}'
         result_dir.mkdir(parents=True, exist_ok=True)
 
-        create_wafer(
-            result_dir / "wafer_image.png",
-            cells=(self.rows, self.cols),
-            chip_data=data_list,
-            pad_letter=0.01,
-        )
+        create_wafer(result_dir / 'wafer_image.png', cells = (self.rows, self.cols), chip_data=data_list,
+                     pad_letter=0.01)
 
         sortbyfirstfunc = itemgetter(0)
-        sorted_list = sorted(data_list, key=sortbyfirstfunc)
-        with open(result_dir / "result_data.txt", "w") as file:
+        sorted_list = sorted(data_list, key = sortbyfirstfunc)
+        with open(result_dir / 'result_data.txt', 'w') as file:
             header = "%chipID\tFrequency (MHz)\tQ\tAdditional info\n"
             file.write(header)
             for line in sorted_list:
@@ -805,56 +716,47 @@ class WaferAnalyzer_vtest(WaferAnalyzer):
         demods = self.zi_device.get_available_demods()
         self.add_demodulators(demods)
 
-        # Connect the signal required to stop or start the acquisition
+        #Connect the signal required to stop or start the acquisition
         self.executionButton.clicked.connect(self.initialize_daq_module)
         self.executionButton.clicked.connect(self.stop_acquisition)
 
     def initialize_daq_module(self, buttonval):
         if buttonval is not True:
             return
-        if self.active_chip:  # If no chip is selected, the ID is the empty string
-            saving_dir = (
-                self.wafer_directory
-                / self.wafer_name
-                / self.active_chip
-                / f"mode{self.active_mode+1}"
-            )
-            desired_signals = ["x", "y", "frequency"]
+        if self.active_chip: #If no chip is selected, the ID is the empty string
+            saving_dir = self.wafer_directory / self.wafer_name / self.active_chip / f"mode{self.active_mode+1}"
+            desired_signals = ['x', 'y', 'frequency']
 
-            stream_read_kwargs = {"read_duration": 9000, "burst_duration": 0.5}
+            stream_read_kwargs = {'read_duration': 9000,
+                                  'burst_duration': 0.5}
 
             subscribe_demods = []
             for chbox in self.demod_collection:
                 if chbox.isChecked():
-                    subscribe_demods.append(int(chbox.text()) - 1)
+                    subscribe_demods.append(int(chbox.text())-1)
 
             if len(subscribe_demods) == 0:
-                print(
-                    "You need to select at least a demodulator to start the acquisition."
-                )
+                print("You need to select at least a demodulator to start the acquisition.")
                 self.executionButton.setChecked(False)
                 return
 
-            self._daqmodule_name = self.zi_device.set_subscribe_daq(
-                subscribe_demods, desired_signals, **stream_read_kwargs
-            )
+            self._daqmodule_name = self.zi_device.set_subscribe_daq(subscribe_demods, desired_signals,
+                                                                    **stream_read_kwargs)
             self._sig_paths = self.zi_device.daqmodules_sigs[self._daqmodule_name]
 
             ### Now create the saving folder if it doesn't exist
             saving_dir.mkdir(parents=True, exist_ok=True)
 
             ### Now create the h5 file. First get the h5 files in the folder, to pick the file name.
-            file_num = len(list(saving_dir.glob("*h5")))
+            file_num = len(list(saving_dir.glob('*h5')))
             file_num = str(file_num)
-            ringdown_name = (
-                4 - len(file_num)
-            ) * "0" + file_num  # Eg: file_num = 3, then ringdown_name = 0003
+            ringdown_name = (4 - len(file_num)) * "0" + file_num  # Eg: file_num = 3, then ringdown_name = 0003
             self._current_savefile = saving_dir / f"ringdown{ringdown_name}.h5"
-            with h5py.File(self._current_savefile, "w") as h5file:
-                h5kwargs = {"shape": (0,), "maxshape": (None,), "dtype": np.float64}
+            with h5py.File(self._current_savefile, 'w') as h5file:
+                h5kwargs = {'shape':(0,), 'maxshape': (None,), 'dtype':np.float64}
                 for path in self._sig_paths:
-                    h5file.create_dataset(name=path + "/timestamp", **h5kwargs)
-                    h5file.create_dataset(name=path + "/value", **h5kwargs)
+                    h5file.create_dataset(name=path + '/timestamp', **h5kwargs)
+                    h5file.create_dataset(name=path + '/value', **h5kwargs)
 
             self.disableNonAcqWidgets(True)
             ####Synchronize and start acquisition

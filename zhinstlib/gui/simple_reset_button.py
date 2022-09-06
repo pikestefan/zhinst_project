@@ -16,6 +16,7 @@ import time
 
 
 class ResetButton(qwid.QWidget):
+
     def __init__(self, *args, **kwargs):
         super(ResetButton, self).__init__(*args, **kwargs)
         self.timer = qcore.QTimer()
@@ -27,10 +28,10 @@ class ResetButton(qwid.QWidget):
 
         layout = qwid.QVBoxLayout()
 
-        self.text_edit = qwid.QLineEdit("dev5152")
+        self.text_edit = qwid.QLineEdit('dev5152')
         layout.addWidget(self.text_edit)
 
-        self.connect_button = qwid.QPushButton(text="Connect to device")
+        self.connect_button = qwid.QPushButton(text='Connect to device')
         self.connect_button.clicked.connect(self.connect_to_dev)
         layout.addWidget(self.connect_button)
 
@@ -38,22 +39,22 @@ class ResetButton(qwid.QWidget):
         self.check_box_list = []
         for ii in range(4):
             loc_cbox = qwid.QCheckBox()
-            loc_cbox.setText(f"PID {ii}")
+            loc_cbox.setText(f'PID {ii}')
             hlayout.addWidget(loc_cbox)
             self.check_box_list.append(loc_cbox)
         layout.addLayout(hlayout)
 
-        self.reset_button = qwid.QPushButton(text="Reset PIDs")
+        self.reset_button = qwid.QPushButton(text='Reset PIDs')
         self.reset_button.clicked.connect(self.reset_pids)
         layout.addWidget(self.reset_button)
 
-        start_watch = qwid.QPushButton(text="Auto lock-reset")
+        start_watch = qwid.QPushButton(text='Auto lock-reset')
         start_watch.setCheckable(True)
         start_watch.toggled.connect(self.automatic_pid_reset)
         layout.addWidget(start_watch)
         self.setLayout(layout)
 
-        self.setObjectName("PID reset button")
+        self.setObjectName('PID reset button')
         self.show()
 
     @qcore.pyqtSlot()
@@ -62,17 +63,12 @@ class ResetButton(qwid.QWidget):
             device_id = self.text_edit.text()
             props = get_device_props(device_id)
 
-            dev = ziVirtualDevice(
-                device_id,
-                props["serveraddress"],
-                props["serverport"],
-                props["apilevel"],
-            )
+            dev = ziVirtualDevice(device_id, props['serveraddress'], props['serverport'], props['apilevel'])
 
             if dev is not None:
                 self.connected = True
                 self.zinst_dev = dev
-                print("Connected.")
+                print('Connected.')
                 self.text_edit.setDisabled(True)
                 self.connect_button.setDisabled(True)
         else:
@@ -112,9 +108,7 @@ class ResetButton(qwid.QWidget):
                     self.zinst_dev.set_pid_enabled(ii, True)
                     tod = time.localtime()
                     tod_mins = f"0{tod.tm_min}" if tod.tm_min // 10 == 0 else tod.tm_min
-                    print(
-                        f"Reset event at {tod.tm_hour}:{tod.tm_min} of {tod.tm_mday}/{tod.tm_mon}/{tod.tm_year}"
-                    )
+                    print(f"Reset event at {tod.tm_hour}:{tod.tm_min} of {tod.tm_mday}/{tod.tm_mon}/{tod.tm_year}")
 
     def activate_buttons(self, set_active=True):
         self.reset_button.setDisabled(set_active)

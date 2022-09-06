@@ -4,17 +4,13 @@ from zhinstlib.data_processing.data_manip import chunkify_timetrace
 from zhinstlib.data_processing.fitting_funcs import lin_rdown, lin_rdown_v2
 from scipy.optimize import curve_fit
 
-
 class WaferFitContainer(object):
     """
     A class used to store in memory the fit results for all the chips and all the modes, even when the actual data are deleted
     """
-
     def __init__(self):
-        self._mode_dictionary = dict()  # Each item will be a dictionary of chips
-        self._chip_usable = (
-            dict()
-        )  # Use to store if the chip has been marked as usable or not
+        self._mode_dictionary = dict() #Each item will be a dictionary of chips
+        self._chip_usable = dict() #Use to store if the chip has been marked as usable or not
 
     def set_freq_Q(self, mode_frequency, Qfactor, mode, chipID):
         if mode not in self._mode_dictionary.keys():
@@ -27,10 +23,7 @@ class WaferFitContainer(object):
         return self._mode_dictionary[mode]
 
     def hasQs(self, mode_idx, chipID):
-        if (
-            mode_idx in self._mode_dictionary
-            and chipID in self._mode_dictionary[mode_idx]
-        ):
+        if mode_idx in self._mode_dictionary and chipID in self._mode_dictionary[mode_idx]:
             chip = self._mode_dictionary[mode_idx][chipID]
             hasqs = (chip[0] is not None) and (chip[1]) is not None
         else:
@@ -53,8 +46,6 @@ class WaferFitContainer(object):
             return self._chip_usable[mode_idx][chipID]
         else:
             return True
-
-
 """
 Here there are some nested classes:
 - WaferContainer: a collection of chips for a given mechanical mode. Each chip is a RingdownContainer.
@@ -63,7 +54,6 @@ Here there are some nested classes:
 - DemodulatorDataContainer: the most basic class. Contains the time axis, x, y, ampltiude and phase quadratures. The 
                             fit results are stored in this last data container.
 """
-
 
 class WaferDataContainer(object):
     def __init__(self, mode):
@@ -122,13 +112,13 @@ class RingdownDataContainer(object):
     def get_ringdown_num(self):
         return len(self._ringdowns)
 
-    def get_ringdown_demods(self, ringdown=0):
+    def get_ringdown_demods(self, ringdown = 0):
         """
         Returns the demodulators for a given ringdown sequence.
         """
         return self._ringdowns[ringdown].get_demods()
 
-    def ringdown(self, ringdown=0):
+    def ringdown(self, ringdown = 0):
         """
         Returns the LockinData container for a given ringdown
         """
@@ -141,27 +131,19 @@ class RingdownDataContainer(object):
         """
         ringdown_li_data = LockinData()
 
-        with h5py.File(filepath, "r") as file:
+        with h5py.File(filepath, 'r') as file:
             demod_templist = [int(key) for key in file[h5file_demodpath].keys()]
             for demod in demod_templist:
-                timestamp = file[
-                    h5file_demodpath + f"/{demod}/sample.frequency/timestamp"
-                ][:]
+                timestamp = file[h5file_demodpath + f"/{demod}/sample.frequency/timestamp"][:]
                 timestamp = (timestamp - timestamp[0]) / 210e6
 
-                frequency = file[h5file_demodpath + f"/{demod}/sample.frequency/value"][
-                    :
-                ].mean()
+                frequency = file[h5file_demodpath + f"/{demod}/sample.frequency/value"][:].mean()
                 x_quad = file[h5file_demodpath + f"/{demod}/sample.x/value"][:]
                 y_quad = file[h5file_demodpath + f"/{demod}/sample.y/value"][:]
 
-                ringdown_li_data.create_demod(
-                    demod,
-                    time_axis=timestamp,
-                    x_quad=x_quad,
-                    y_quad=y_quad,
-                    frequency=frequency,
-                )
+                ringdown_li_data.create_demod(demod, time_axis=timestamp,
+                                              x_quad=x_quad, y_quad=y_quad,
+                                              frequency=frequency)
 
         self.add_ringdown_sequence(ringdown_li_data)
 
@@ -174,13 +156,11 @@ class RingdownDataContainer(object):
             chunked_ringdown_list = ringdown.chunkify_demods(reference_demod)
             self._ringdowns = self._ringdowns + chunked_ringdown_list
 
-    def fit_ringdown(self, ringdown_idx, signal_demod, timerange=None):
-        success_flag = self._ringdowns[ringdown_idx].fit_demod_decay(
-            signal_demod, timerange=timerange
-        )
+    def fit_ringdown(self, ringdown_idx, signal_demod, timerange = None):
+        success_flag = self._ringdowns[ringdown_idx].fit_demod_decay(signal_demod, timerange=timerange)
 
         successful = True if success_flag == 0 else False
-        fail_string = ""
+        fail_string = ''
         if not successful:
             fail_string = f"Fit failed at ringdown {ringdown_idx}."
         return successful, fail_string
@@ -193,15 +173,9 @@ class RingdownDataContainer(object):
         for ii, ringdown in enumerate(self._ringdowns):
             decay_demod = ringdown.demod(signal_demod)
             if decay_demod.isFitted():
-                Q_array[ii] = [
-                    decay_demod.frequency,
-                    2
-                    * np.pi
-                    * decay_demod.frequency
-                    / decay_demod.get_mechmode_gamma(),
-                ]
+                Q_array[ii] = [decay_demod.frequency, 2*np.pi*decay_demod.frequency / decay_demod.get_mechmode_gamma()]
 
-        Q_array = Q_array[Q_array[:, 0] != 0, :].mean(axis=0)
+        Q_array = Q_array[Q_array[:,0]!=0, :].mean(axis = 0)
 
         self._res_freq_mean, self._Q_mean = Q_array
         return self._res_freq_mean, self._Q_mean
@@ -214,19 +188,18 @@ class RingdownDataContainer(object):
         return self._res_freq_mean, self._Q_mean
 
 
+
 class LockinData(object):
     """
     Stores the data of each single demodulator. The single demods can be easily invoked using the demod function.
     """
-
-    def __init__(self, chunkified=False):
+    def __init__(self, chunkified = False):
         self._demods = dict()
         self._chunkified = chunkified
 
     def create_demod(self, demod, time_axis, x_quad, y_quad, frequency):
-        data_container = DemodulatorDataContainer(
-            time_axis=time_axis, x_quad=x_quad, y_quad=y_quad, frequency=frequency
-        )
+        data_container = DemodulatorDataContainer(time_axis=time_axis, x_quad=x_quad, y_quad=y_quad,
+                                                  frequency=frequency)
         data_container.get_ampphase_quads()
         self._demods[demod] = data_container
 
@@ -251,39 +224,33 @@ class LockinData(object):
         :return list of the new LockinData
         """
         reference_signal = self._demods[reference_demod].r_quad
-        chunk_num = len(
-            chunkify_timetrace(reference_signal, reference_signal)
-        )  # Trick to know the number of chunks in advance
-        self.pop(reference_demod)  # Remove the demod from the demod dictionary.
+        chunk_num = len(chunkify_timetrace(reference_signal, reference_signal)) #Trick to know the number of chunks in advance
+        self.pop(reference_demod) #Remove the demod from the demod dictionary.
 
-        # Now chunk up the rest of the demods. First create a list of new empty Lockin containers.
+        #Now chunk up the rest of the demods. First create a list of new empty Lockin containers.
         lockin_list = [LockinData(chunkified=True) for _ in range(chunk_num)]
         for demod_num, data in self._demods.items():
 
-            # Stack up the data to chunk them up
-            data_stack = np.vstack((data.time_axis, data.x_quad, data.y_quad))
+            #Stack up the data to chunk them up
+            data_stack = np.vstack((data.time_axis,
+                                    data.x_quad,
+                                    data.y_quad))
 
             chunked_signals = chunkify_timetrace(data_stack, reference_signal)
 
             for chunk_num, data_chunk in enumerate(chunked_signals):
-                data_chunk[0, :] -= data_chunk[
-                    0, 0
-                ]  # Set the beginning of time to be zero
-                lockin_list[chunk_num].create_demod(
-                    demod_num, *data_chunk, data.frequency
-                )
+                data_chunk[0,:] -= data_chunk[0,0] #Set the beginning of time to be zero
+                lockin_list[chunk_num].create_demod(demod_num, *data_chunk, data.frequency)
 
         return lockin_list
 
-    def fit_demod_decay(self, demod_idx, timerange=None):
+    def fit_demod_decay(self, demod_idx, timerange = None):
         signal_demod = self._demods[demod_idx]
         success_flag = 0
         if not signal_demod.isFitted():
             if (timerange is not None) and (len(timerange) == 2):
-                timeaxmask = np.logical_and(
-                    signal_demod.time_axis >= timerange[0],
-                    signal_demod.time_axis <= timerange[1],
-                )
+                timeaxmask = np.logical_and( signal_demod.time_axis >= timerange[0],
+                                             signal_demod.time_axis <= timerange[1])
                 x_ax_fit = signal_demod.time_axis[timeaxmask]
                 start_time = x_ax_fit[0]
                 y_ax_fit = signal_demod.r_quad[timeaxmask]
@@ -293,46 +260,34 @@ class LockinData(object):
                 y_ax_fit = signal_demod.r_quad
 
             x_ax_fit -= start_time
-            # TODO: for now juse use a linear ringdown. In the future, it should be a user choice.
+            #TODO: for now juse use a linear ringdown. In the future, it should be a user choice.
 
-            # Use the first half a second of decay to guess the gamma
+            #Use the first half a second of decay to guess the gamma
             fit_mask = y_ax_fit >= (y_ax_fit[0] * np.exp(-1))
-            y_for_guess = np.log(y_ax_fit[fit_mask] / y_ax_fit[0])
-            gamma_guess = 2 * abs(
-                (np.diff(y_for_guess) / np.diff(x_ax_fit[fit_mask])).mean()
-            )
+            y_for_guess =  np.log(y_ax_fit[fit_mask] / y_ax_fit[0])
+            gamma_guess = 2 * abs( (np.diff(y_for_guess) / np.diff( x_ax_fit[fit_mask] )).mean() )
             amp_guess = y_ax_fit[0]
             y0_guess = 0
 
             try:
-                fitfunc = lin_rdown  # Here in case it is going to be replaced by some user-defined function
-                optimal_pars, cov_mat = curve_fit(
-                    fitfunc,
-                    x_ax_fit,
-                    y_ax_fit,
-                    p0=[gamma_guess, y0_guess, amp_guess],
-                    bounds=([0, 0, 0], [np.inf, np.inf, np.inf]),
-                    maxfev=10000,
-                    gtol=1e-8,
-                )
+                fitfunc = lin_rdown # Here in case it is going to be replaced by some user-defined function
+                optimal_pars, cov_mat = curve_fit(fitfunc, x_ax_fit, y_ax_fit, p0 = [gamma_guess, y0_guess, amp_guess],
+                                                  bounds = ([0, 0, 0], [np.inf, np.inf, np.inf]),
+                                                  maxfev=10000, gtol = 1e-8)
 
                 signal_demod.set_mechmode_gamma(optimal_pars[0])
 
-                signal_demod.set_fit_info(
-                    [optimal_pars, start_time, x_ax_fit[-1], fitfunc]
-                )
+                signal_demod.set_fit_info( [optimal_pars, start_time, x_ax_fit[-1], fitfunc] )
 
             except:
                 success_flag = -1
         return success_flag
 
-
 class DemodulatorDataContainer(object):
     """
     The most core container. It stores the quadratures, frequency and timestamp of a demodulator.
     """
-
-    def __init__(self, time_axis=None, x_quad=None, y_quad=None, frequency=None):
+    def __init__(self, time_axis = None, x_quad = None, y_quad = None, frequency = None):
         self.x_quad = x_quad
         self.y_quad = y_quad
         self.frequency = frequency
@@ -342,14 +297,14 @@ class DemodulatorDataContainer(object):
 
         self._mechmode_gamma = None
 
-        # should be a list ordered as: [optimal fit pars, start time, stop time, fit function]
+        #should be a list ordered as: [optimal fit pars, start time, stop time, fit function]
         self._fit_info = None
 
     def get_ampphase_quads(self, x_quad=None, y_quad=None):
         if x_quad is not None and y_quad is not None:
-            complex_amp = x_quad + 1j * y_quad
+            complex_amp = x_quad + 1j*y_quad
         else:
-            complex_amp = self.x_quad + 1j * self.y_quad
+            complex_amp = self.x_quad + 1j*self.y_quad
         r = np.abs(complex_amp)
         phase = np.angle(complex_amp)
         self.r_quad, self.phase_quad = r, phase
@@ -366,11 +321,14 @@ class DemodulatorDataContainer(object):
 
     def get_fitted_data(self):
         opt_pars, start, stop, fitfunc = self._fit_info
-        x_ax = np.linspace(
-            0, stop, 1000
-        )  # Hardcoded value to ensure the looks of a smooth fit function in the plot.
+        x_ax = np.linspace(0, stop, 1000) # Hardcoded value to ensure the looks of a smooth fit function in the plot.
         y_ax = fitfunc(x_ax, *opt_pars)
-        return np.vstack((x_ax + start, y_ax))
+        return np.vstack((x_ax+start, y_ax))
 
     def set_fit_info(self, fit_info):
         self._fit_info = fit_info
+
+
+
+
+

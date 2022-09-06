@@ -1,9 +1,8 @@
 from PyQt5.QtWidgets import QDialog, QFileDialog
 from PyQt5 import uic
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import  pyqtSignal
 from pathlib import Path
 import os
-
 
 class ChooseModeDialog(QDialog):
     signal_wafer_mode = pyqtSignal(str, int)
@@ -12,10 +11,9 @@ class ChooseModeDialog(QDialog):
     """
     Three values: 0-> Create new directory, 1->Append to existing, 2->Load data
     """
-
     def __init__(self):
         this_dir = Path(__file__).resolve()
-        ui_file = this_dir.parents[1] / "ui_files" / "wafer_folder_selection.ui"
+        ui_file = this_dir.parents[1] / 'ui_files' / 'wafer_folder_selection.ui'
         super(ChooseModeDialog, self).__init__()
         uic.loadUi(ui_file, self)
 
@@ -27,28 +25,26 @@ class ChooseModeDialog(QDialog):
 
     def create_load(self, val):
         options = self._dialog.Options()
-        foldername = self._dialog.getExistingDirectory(
-            self, "QFileDialog.getOpenFileName()", "", options=options
-        )
+        foldername = self._dialog.getExistingDirectory(self, "QFileDialog.getOpenFileName()", "",
+                                                       options=options)
         sender_name = self.sender().objectName()
-        if sender_name == "createButton":
+        if sender_name == 'createButton':
             create_val = 0
-        elif sender_name == "loadButton":
+        elif sender_name == 'loadButton':
             create_val = 2
         else:
             create_val = 1
 
-        if foldername != "":
+        if foldername != '':
             self.signal_wafer_mode.emit(foldername, create_val)
             self.close()
-
 
 class WaferDialogGui(QDialog):
     dialog_accepted = pyqtSignal(int, int, int, str, str)
 
     def __init__(self):
         this_dir = Path(__file__).resolve()
-        ui_file = this_dir.parents[1] / "ui_files" / "wafer_dialog.ui"
+        ui_file = this_dir.parents[1] / 'ui_files' / 'wafer_dialog.ui'
         super(WaferDialogGui, self).__init__()
         uic.loadUi(str(ui_file), self)
 
