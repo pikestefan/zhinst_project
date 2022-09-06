@@ -1,31 +1,42 @@
-from PyQt5.QtWidgets import QTextEdit,QSizePolicy, QWidget, QMenu
+from PyQt5.QtWidgets import QTextEdit, QSizePolicy, QWidget, QMenu
 from PyQt5.QtCore import pyqtSignal, QEvent
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QAction
+
 
 class InteractingLineEdit(QTextEdit):
 
     signal_widget_clicked = pyqtSignal(str)
     signal_damaged = pyqtSignal(str, bool)
-    def __init__(self, id, fixed_size = 80, *args, **kwargs):
+
+    def __init__(self, id, fixed_size=80, *args, **kwargs):
         super(InteractingLineEdit, self).__init__(*args, **kwargs)
         self.id = id
         self.setEnabled(False)
-        self.setSizePolicy( QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed) )
+        self.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
         self.fixed_size = fixed_size
         self.setFixedSize(self.fixed_size, self.fixed_size)
 
-        self._stylesheet_modes = {"standard": {"no hover": "background-color:rgb(204,204,204);border: 1px solid black; font-size:10px; color:k",
-                                              "hover": "background-color:rgb(204,204,204);border: 3px solid red; font-size:10px; color:k",
-                                              "clicked" : "background-color:rgb(255,183,67);border: 3px solid rgb(0,148,49); font-size:10px; color:k"},
-                                 "data loaded": {"no hover": "background-color:rgb(155,225,199);border: 1px solid rgb(0,0,0); font-size:10px; color:k",
-                                                 "hover": "background-color:rgb(155,225,199);border: 3px solid rgb(0,118,19); font-size:10px; color:k",
-                                                 "clicked" : "background-color:rgb(158,255,245);border: 3px solid rgb(0,148,49); font-size:10px; color:k"},
-                                 "data missing": {"no hover": "background-color:rgb(150,150,150);border: 1px solid black; font-size:10px; color:k"},
-                                 "damaged": {"no hover": "background-color:rgb(255,189,193);border: 1px solid black; font-size:10px; color:k",
-                                             "hover": "background-color:rgb(255,189,193);border: 3px solid red; font-size:10px; color:k",
-                                             "clicked": "background-color:rgb(255,86,98);border: 3px solid rgb(0,148,49); font-size:10px; color:k"},
-                                 }
+        self._stylesheet_modes = {
+            "standard": {
+                "no hover": "background-color:rgb(204,204,204);border: 1px solid black; font-size:10px; color:k",
+                "hover": "background-color:rgb(204,204,204);border: 3px solid red; font-size:10px; color:k",
+                "clicked": "background-color:rgb(255,183,67);border: 3px solid rgb(0,148,49); font-size:10px; color:k",
+            },
+            "data loaded": {
+                "no hover": "background-color:rgb(155,225,199);border: 1px solid rgb(0,0,0); font-size:10px; color:k",
+                "hover": "background-color:rgb(155,225,199);border: 3px solid rgb(0,118,19); font-size:10px; color:k",
+                "clicked": "background-color:rgb(158,255,245);border: 3px solid rgb(0,148,49); font-size:10px; color:k",
+            },
+            "data missing": {
+                "no hover": "background-color:rgb(150,150,150);border: 1px solid black; font-size:10px; color:k"
+            },
+            "damaged": {
+                "no hover": "background-color:rgb(255,189,193);border: 1px solid black; font-size:10px; color:k",
+                "hover": "background-color:rgb(255,189,193);border: 3px solid red; font-size:10px; color:k",
+                "clicked": "background-color:rgb(255,86,98);border: 3px solid rgb(0,148,49); font-size:10px; color:k",
+            },
+        }
         self._active_stylesheet = self._stylesheet_modes["standard"]
         self.setStyleSheet(self._active_stylesheet["no hover"])
         self.isclicked = False
@@ -50,8 +61,8 @@ class InteractingLineEdit(QTextEdit):
                     self.signal_widget_clicked.emit(self.id)
                 elif event.button() == Qt.RightButton:
                     menu = QMenu()
-                    damaged = menu.addAction('Mark as damaged')
-                    usable = menu.addAction('Mark as usable')
+                    damaged = menu.addAction("Mark as damaged")
+                    usable = menu.addAction("Mark as usable")
                     if menu.exec_(event.globalPos()) == damaged:
                         self.signal_damaged.emit(self.id, True)
                     else:
