@@ -125,12 +125,13 @@ class ziVirtualDevice(object):
 
         flags = ziListEnum.recursive | ziListEnum.absolute | ziListEnum.streamingonly
         streaming_nodes = self.ziServer.listNodes(self._baseaddress, flags)
+        streaming_nodes = [stream.lower() for stream in streaming_nodes]
 
         daq_module = self.ziServer.dataAcquisitionModule()
 
         for demod in demod_dictionary:
             demod_path = self._baseaddress + f"/demods/{demod}/sample"
-            if demod_path.upper() not in streaming_nodes:
+            if demod_path not in streaming_nodes:
                 print(f'Device {self.dev_name} does not have the requested demods.')
                 raise Exception("Demodulator streaming nodes unavailable.")
 
@@ -206,7 +207,7 @@ class ziVirtualDevice(object):
                 timestamp = np.copy(data)
                 for ii, signal_value in enumerate(signal_values):
                     data[ii] = signal_value["value"]
-                    timestamp[ii] = signal_value["timestamp"]
+                    timestamp[ii] = signal_value["timestamp"]/self.clockbase
             else:
                 timestamp, data = None, None
             out_dictionary[signal] = [timestamp, data]
@@ -231,6 +232,13 @@ class ziVirtualDevice(object):
             raise Exception("The module has not been set and added to the daqmodules yet.")
         else:
             self.daqmodules.pop(daq_module_name)
+
+    def wait_daqmodule(self, daq_module_name=None):
+        if daq_module_name not in self.daqmodules.keys():
+            raise Exception("The module has not been set and added to the daqmodules yet.")
+        else:
+            while not self.daqmodules[daq_module_name].finished():
+                pass
 
     def get_subscribed_signals(self, daqmodule_name):
         return [signal.replace(self._baseaddress, '') for signal in self.daqmodules_sigs[daqmodule_name]]
@@ -339,6 +347,13 @@ class ziVirtualDevice(object):
     def get_demod_phase(self, demod=None):
         cmd = self._baseaddress + f'/demods/{demod}/phaseshift'
         return self.ziServer.getDouble(cmd)
+
+    def get_pid_enabled(self, pid_num=0):
+        if self._haspids:
+            cmd = self._baseaddress + f'/pids/{pid_num}/enable'
+            return bool(self.ziServer.getInt(cmd))
+        else:
+            raise (Exception('Device has no PIDs'))
 
     def sync(self):
         self.ziServer.sync()
