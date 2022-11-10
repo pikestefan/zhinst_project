@@ -12,12 +12,13 @@ def chunkify_timetrace(signal, reference):
     signal_chunks = []
     for ii in range(len(idxs) - 1):
         if (diff_ref[ii] == -1) and (diff_ref[ii + 1] == 1):
-            signal_chunks.append(signal[idxs[ii]:idxs[ii + 1]])
+            signal_chunks.append(signal[idxs[ii] : idxs[ii + 1]])
 
     if diff_ref[-1] == -1:
-        signal_chunks.append(signal[idxs[-1]:])
+        signal_chunks.append(signal[idxs[-1] :])
 
     return signal_chunks
+
 
 def chunkify_timetrace(signal, reference):
     """
@@ -25,7 +26,7 @@ def chunkify_timetrace(signal, reference):
     :param reference: a (N,) TTL-like array containing the reference to chunkify
     :return: list of chunkified signal
     """
-    if signal.ndim ==1:
+    if signal.ndim == 1:
         signal = signal[np.newaxis, :]
     idxs = np.arange(0, signal.shape[1] - 1)
 
@@ -37,13 +38,13 @@ def chunkify_timetrace(signal, reference):
     diff_ref, idxs = diff_ref[diff_nonzero], idxs[diff_nonzero]
 
     signal_chunks = []
-    #TODO: clean up this horrible mess of if clauses
+    # TODO: clean up this horrible mess of if clauses
     for ii in range(len(idxs) - 1):
         if (diff_ref[ii] == -1) and (diff_ref[ii + 1] == 1):
-            signal_chunks.append(signal[:, idxs[ii]:idxs[ii + 1]])
+            signal_chunks.append(signal[:, idxs[ii] : idxs[ii + 1]])
 
     if diff_ref[-1] == -1:
-        signal_chunks.append(signal[:, idxs[-1]:])
+        signal_chunks.append(signal[:, idxs[-1] :])
 
     if signal.ndim == 1:
         signal_chunks = signal_chunks[0]
@@ -58,7 +59,9 @@ def special_chunkification(signal, reference, spike_SNR=1000, reference_percs=[1
 
     diff_ref = np.diff(reference)
 
-    derivative_thresh = np.diff(np.percentile(abs(diff_ref), reference_percs)) * spike_SNR
+    derivative_thresh = (
+        np.diff(np.percentile(abs(diff_ref), reference_percs)) * spike_SNR
+    )
 
     prev_der = 0
     chunk_blk = []
@@ -82,7 +85,7 @@ def special_chunkification(signal, reference, spike_SNR=1000, reference_percs=[1
             prev_der = der_value
         if len(chunk_blk) == 2:
             # If the chunk length is 2, it means that a pulse has been fully detected
-            signal_chunks.append(signal[chunk_blk[0] + 1:chunk_blk[1] + 1])
+            signal_chunks.append(signal[chunk_blk[0] + 1 : chunk_blk[1] + 1])
             chunk_blk = []
 
     return signal_chunks

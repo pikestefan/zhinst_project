@@ -15,7 +15,6 @@ import time
 
 
 class TurnOffPID_btn(qwid.QWidget):
-
     def __init__(self, *args, **kwargs):
         super(TurnOffPID_btn, self).__init__(*args, **kwargs)
 
@@ -24,10 +23,10 @@ class TurnOffPID_btn(qwid.QWidget):
 
         layout = qwid.QVBoxLayout()
 
-        self.text_edit = qwid.QLineEdit('dev5152')
+        self.text_edit = qwid.QLineEdit("dev5152")
         layout.addWidget(self.text_edit)
 
-        self.connect_button = qwid.QPushButton(text='Connect to device')
+        self.connect_button = qwid.QPushButton(text="Connect to device")
         self.connect_button.clicked.connect(self.connect_to_dev)
         layout.addWidget(self.connect_button)
 
@@ -36,21 +35,21 @@ class TurnOffPID_btn(qwid.QWidget):
         self.btn_list = []
         self.txt_edit_list = []
         for ii in range(4):
-            loc_pushbtn = qwid.QPushButton(text=f'PID {ii}')
+            loc_pushbtn = qwid.QPushButton(text=f"PID {ii}")
             loc_pushbtn.setCheckable(True)
-            loc_pushbtn.setText(f'PID {ii}')
+            loc_pushbtn.setText(f"PID {ii}")
             loc_pushbtn.clicked.connect(self.turn_off_pids)
             hlayout.addWidget(loc_pushbtn)
             self.btn_list.append(loc_pushbtn)
 
-            loc_ledit = qwid.QLineEdit('0')
+            loc_ledit = qwid.QLineEdit("0")
             hlayout2.addWidget(loc_ledit)
             self.txt_edit_list.append(loc_ledit)
         layout.addLayout(hlayout)
         layout.addLayout(hlayout2)
 
         self.setLayout(layout)
-        self.setObjectName('PID reset button')
+        self.setObjectName("PID reset button")
         self.show()
 
     @qcore.pyqtSlot()
@@ -59,12 +58,17 @@ class TurnOffPID_btn(qwid.QWidget):
             device_id = self.text_edit.text()
             props = get_device_props(device_id)
 
-            dev = ziVirtualDevice(device_id, props['serveraddress'], props['serverport'], props['apilevel'])
+            dev = ziVirtualDevice(
+                device_id,
+                props["serveraddress"],
+                props["serverport"],
+                props["apilevel"],
+            )
 
             if dev is not None:
                 self.connected = True
                 self.zinst_dev = dev
-                print('Connected.')
+                print("Connected.")
                 self.text_edit.setDisabled(True)
                 self.connect_button.setDisabled(True)
         else:
@@ -81,6 +85,7 @@ class TurnOffPID_btn(qwid.QWidget):
             self.zinst_dev.set_pid_enabled(pid_num, False)
             default_value = self.txt_edit_list[pid_num].text()
             self.zinst_dev.set_aux_offset(pid_num, float(default_value))
+
 
 app = qwid.QApplication([])
 button = TurnOffPID_btn()
