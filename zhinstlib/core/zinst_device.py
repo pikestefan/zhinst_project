@@ -163,13 +163,8 @@ class ziVirtualDevice(object):
 
         for demod in demod_dictionary:
             demod_path = self._baseaddress + f"/demods/{demod}/sample"
-<<<<<<< HEAD
             if demod_path not in streaming_nodes:
                 print(f'Device {self.dev_name} does not have the requested demods.')
-=======
-            if demod_path.upper() not in streaming_nodes:
-                print(f"Device {self.dev_name} does not have the requested demods.")
->>>>>>> a1db1795ae555871e8e0ccd48ca56fad95471c40
                 raise Exception("Demodulator streaming nodes unavailable.")
 
         if triggernode:
