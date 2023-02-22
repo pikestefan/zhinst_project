@@ -95,8 +95,8 @@ class ziVirtualDevice(object):
     def set_subscribe_daq(
         self,
         demod_dictionary=dict(),
-        read_duration=1.0,
-        burst_duration=1.0,
+        read_duration=None,
+        burst_duration=None,
         module_name=None,
         daq_type="continous",
         interp_method="linear",
@@ -171,20 +171,24 @@ class ziVirtualDevice(object):
             daq_module.set("triggernode", self._baseaddress + f"/{triggernode}")
 
         sampling_rate = max(
-            [self.demod_properties[demod]["rate"] for demod in demod_dictionary]
+            [self.get_sampling_rate(demod) for demod in demod_dictionary]
         )
-        num_cols = int(ceil(sampling_rate * burst_duration))
-        if daq_type == 0:
-            num_bursts = int(ceil(read_duration / burst_duration))
-            daq_module.set("count", num_bursts)
+
+        if burst_duration is not None and read_duration is not None:
+            num_cols = int(ceil(sampling_rate * burst_duration))
+            if daq_type == 0:
+                num_bursts = int(ceil(read_duration / burst_duration))
+                daq_module.set("count", num_bursts)
+                daq_module.set("grid/cols", num_cols)
+
+            if interp_method != 4:
+                daq_module.set(
+                    "duration", burst_duration
+                )  # This parameter is read-only in exact acquisition
+
         daq_module.set("device", self.dev_name)
         daq_module.set("type", daq_type)
         daq_module.set("grid/mode", interp_method)
-        daq_module.set("grid/cols", num_cols)
-        if interp_method != 4:
-            daq_module.set(
-                "duration", burst_duration
-            )  # This parameter is read-only in exact acquisition
 
         for keyword, value in kwargs.items():
             daq_module.set(keyword, value)
@@ -214,6 +218,7 @@ class ziVirtualDevice(object):
         read_dictionary = daq_module.read(True)  # Return as a flat dictionary
 
         out_dictionary = dict()
+        header_dictionary = dict()
         for signal in daq_module_signals:
             if signal in read_dictionary:
                 signal_values = read_dictionary.pop(signal)
@@ -222,17 +227,22 @@ class ziVirtualDevice(object):
                     (len(signal_values),) + signal_values[0]["timestamp"].shape
                 )
                 timestamp = np.copy(data)
+
+                temp_head_dicts = [0]*len(signal_values)
                 for ii, signal_value in enumerate(signal_values):
                     data[ii] = signal_value["value"]
                     timestamp[ii] = signal_value["timestamp"]/self.clockbase
+                    temp_head_dicts[ii] = signal_value["header"]
             else:
-                timestamp, data = None, None
+                timestamp, data, temp_head_dicts = None, None, None
+
             out_dictionary[signal] = [timestamp, data]
+            header_dictionary[signal] = temp_head_dicts
 
         if clear_after_finish:
-            daq_module.pop(daq_module_name)
-            daq_module_signals.pop(daq_module_name)
-        return out_dictionary, read_dictionary
+            self.daqmodules.pop(daq_module_name)
+            self.daqmodules_sigs.pop(daq_module_name)
+        return out_dictionary, (header_dictionary, read_dictionary)
 
     def execute_daqmodule(self, daq_module_name=None):
         if daq_module_name not in self.daqmodules.keys():
@@ -333,6 +343,10 @@ class ziVirtualDevice(object):
         cmd = self._baseaddress + f"/demods/{demod}/phaseshift"
         self.ziServer.setDouble(cmd, phase)
 
+    def set_sampling_rate(self, demod=None):
+        cmd = self._baseaddress + f"/demods/{demod}/rate"
+        self.ziServer.setDouble(cmd)
+
     def get_available_demods(self):
         return len(self.ziServer.listNodes(self._baseaddress + "/demods"))
 
@@ -376,6 +390,14 @@ class ziVirtualDevice(object):
         cmd = self._baseaddress + f"/sigouts/{output_channel}/on"
         return bool(self.ziServer.getInt(cmd))
 
+    def get_output_volt(self, demod=None, column=0):
+        cmd = self._baseaddress + f"/sigouts/{column}/amplitudes/{demod}"
+        multiplier = self.get_output_range(column)
+
+        voltage = self.ziServer.getDouble(cmd)
+
+        return voltage * multiplier
+
     def get_demod_phase(self, demod=None):
         cmd = self._baseaddress + f"/demods/{demod}/phaseshift"
         return self.ziServer.getDouble(cmd)
@@ -386,6 +408,10 @@ class ziVirtualDevice(object):
             return bool(self.ziServer.getInt(cmd))
         else:
             raise (Exception('Device has no PIDs'))
+
+    def get_sampling_rate(self, demod=None):
+        cmd = self._baseaddress + f"/demods/{demod}/rate"
+        return self.ziServer.getDouble(cmd)
 
     def sync(self):
         self.ziServer.sync()
