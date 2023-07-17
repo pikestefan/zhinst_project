@@ -110,6 +110,81 @@ def get_h5_signals(h5file):
     return data_dictionary
 
 
+class h5reader:
+    """
+    Class to quickly check all the available paths in a hdf5 file.
+    """
+
+    def __init__(self, h5file):
+        self.h5file = h5file
+        self.h5file_instance = None
+        self.h5tree = None
+        self.queue = None
+
+    def read_tree(self, depth=1000):
+        """
+        Build the tree with breadth-first search.
+        """
+        self.h5file_instance = h5py.File(self.h5file, "r")
+        self.h5tree = []
+
+        self.queue = list(self.h5file_instance.keys())
+
+        depth_ctr = 0
+        while len(self.queue) and depth_ctr < depth:
+            self.read_layer()
+            depth_ctr += 1
+        if depth_ctr == depth:
+            self.h5tree += self.queue
+
+        self.h5tree = sorted(self.h5tree)
+        self.h5file_instance.close()
+        self.h5file_instance = None
+
+        return self.h5tree
+
+    def print_tree(self):
+        for ii, line in enumerate(self.h5tree):
+            print("{:s} ({:d})".format(line, ii))
+
+    def read_layer(self):
+        new_queue = []
+        while len(self.queue):
+            h5path = self.queue.pop()
+            h5layer = self.h5file_instance[h5path]
+            if not isinstance(h5layer, h5py.Dataset):
+                h5path += "/"
+                new_paths = list(map(h5path.__add__, h5layer.keys()))
+                new_queue += new_paths
+            else:
+                self.h5tree.append(h5path)
+
+        self.queue = new_queue
+
+    def get_datasets(self, dsetpath_list):
+        dset_list = []
+        with h5py.File(self.h5file, "r") as file:
+            for dset_path in dsetpath_list:
+                dset = file[dset_path][:]
+                dset_list.append(dset)
+
+        return dset_list
+
+
+def filter_func(freqax, tau, order):
+    return 1 / (1 + 1j * 2 * np.pi * freqax * tau) ** order
+
+
+def lorentz_func(xax, x0=0, lwidth=1e-3, amp=1, offset=0):
+    return amp * (lwidth / 2) ** 2 / ((xax - x0) ** 2 + (lwidth / 2) ** 2) + offset
+
+
+lorentz_model = Model(lorentz_func)
+lor_params = lorentz_model.make_params()
+for param in lor_params.keys():
+    lor_params[param].min, lor_params[param].max = 0, np.inf
+
+
 def get_base_h5path(h5file):
     """
     Finds the base path to the demodulators, in a standard hdf5 path save by the ZI lock-in. Not to be used with
@@ -140,13 +215,13 @@ def import_ringdowns(
 ):
     if type(folder_path) is str:
         folder_path = Path(folder_path)
-    if file_type not in ["custom", "zi"]:
+    if file_type not in ["custom", "zi","custom2"]: #TODO: remove the emergency patch of adding custom2 as file structure
         raise Exception(
             "Please provide an accepted file type. Options are 'custom' or 'zi'."
         )
 
     h5file_list = list(map(str, folder_path.glob("*.h5")))
-    if file_type == "zi":
+    if file_type == "zi" or file_type == "custom2":
         common_h5_path = get_base_h5path(h5file_list[0])
 
     ringdown_list = []
@@ -170,6 +245,12 @@ def import_ringdowns(
             tstamp = signal_array[:, 0]
             signal_norm = signal_array[:, 1]
             trigger = ref_array[:, 1]
+        elif file_type == "custom2": #TODO: this elif needs to go asap
+            with h5py.File(h5file, "r") as file:
+                tstamp = file[common_h5_path + f"{signal_demod}/sample.r/timestamp"][:]
+
+                signal_norm = file[common_h5_path + f"{signal_demod}/sample.r/value"][:]
+                trigger = file[common_h5_path + f"{reference_demod}/sample.r/value"][:]
         else:
             with h5py.File(h5file, "r") as file:
                 tstamp = file[common_h5_path + f"{signal_demod}/sample.x/timestamp"][:]
