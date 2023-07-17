@@ -170,11 +170,14 @@ class ziVirtualDevice(object):
         if triggernode:
             daq_module.set("triggernode", self._baseaddress + f"/{triggernode}")
 
-        sampling_rate = max(
-            [self.get_sampling_rate(demod) for demod in demod_dictionary]
-        )
-
         if burst_duration is not None and read_duration is not None:
+            sampling_rate = max(
+                [self.get_sampling_rate(demod) for demod in demod_dictionary]
+            )
+
+            for demod in demod_dictionary:
+                self.set_sampling_rate(demod, sampling_rate)
+
             num_cols = int(ceil(sampling_rate * burst_duration))
             if daq_type == 0:
                 num_bursts = int(ceil(read_duration / burst_duration))
@@ -343,9 +346,9 @@ class ziVirtualDevice(object):
         cmd = self._baseaddress + f"/demods/{demod}/phaseshift"
         self.ziServer.setDouble(cmd, phase)
 
-    def set_sampling_rate(self, demod=None):
+    def set_sampling_rate(self, demod=None, sampling_rate=None):
         cmd = self._baseaddress + f"/demods/{demod}/rate"
-        self.ziServer.setDouble(cmd)
+        self.ziServer.setDouble(cmd, sampling_rate)
 
     def get_available_demods(self):
         return len(self.ziServer.listNodes(self._baseaddress + "/demods"))
