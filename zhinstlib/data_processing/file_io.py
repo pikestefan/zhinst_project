@@ -170,21 +170,6 @@ class h5reader:
 
         return dset_list
 
-
-def filter_func(freqax, tau, order):
-    return 1 / (1 + 1j * 2 * np.pi * freqax * tau) ** order
-
-
-def lorentz_func(xax, x0=0, lwidth=1e-3, amp=1, offset=0):
-    return amp * (lwidth / 2) ** 2 / ((xax - x0) ** 2 + (lwidth / 2) ** 2) + offset
-
-
-lorentz_model = Model(lorentz_func)
-lor_params = lorentz_model.make_params()
-for param in lor_params.keys():
-    lor_params[param].min, lor_params[param].max = 0, np.inf
-
-
 def get_base_h5path(h5file):
     """
     Finds the base path to the demodulators, in a standard hdf5 path save by the ZI lock-in. Not to be used with
