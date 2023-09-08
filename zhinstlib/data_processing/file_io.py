@@ -121,6 +121,9 @@ class h5reader:
         self.h5tree = None
         self.queue = None
 
+    def set_h5file(self, new_h5path):
+        self.h5file = new_h5path
+
     def read_tree(self, depth=1000):
         """
         Build the tree with breadth-first search.
